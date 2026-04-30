@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 // Types
-type Item = { pk: string; name: string; price: number; categoryId?: string; brandId?: string; entityType?: string };
+type Item = { pk: string; name: string; price: number; unit?: string; categoryId?: string; brandId?: string; entityType?: string };
 type Category = { pk: string; name: string };
 type Brand = { pk: string; name: string };
 type Customer = {
@@ -22,7 +22,7 @@ type Customer = {
   discount?: number;
 };
 
-type Line = { itemId?: string; description: string; qty: number; unitPrice: number; discount: number };
+type Line = { itemId?: string; description: string; qty: number; unitPrice: number; discount: number; unit?: string };
 
 type MultiPayment = { id: string; type: "Cash" | "Card" | "Bank Transfer"; amount: number; cardLast4?: string; note?: string };
 
@@ -69,6 +69,17 @@ function getCustomerDiscountAmount(customer: Customer, unitPrice: number, qty = 
 
 function hasCustomerDiscount(customer: Customer) {
   return Boolean(customer.pk && customer.discountType && Number(customer.discount || 0) > 0);
+}
+
+function canUseDecimalQty(unit?: string) {
+  return unit?.trim().toLowerCase() === "kg";
+}
+
+function normalizeQty(value: number, unit?: string) {
+  if (!Number.isFinite(value)) return canUseDecimalQty(unit) ? 0.01 : 1;
+  const min = canUseDecimalQty(unit) ? 0.01 : 1;
+  const next = canUseDecimalQty(unit) ? value : Math.trunc(value);
+  return Math.max(min, next);
 }
 
 // Inner component (uses useSearchParams)
@@ -237,6 +248,14 @@ function PosInner() {
   }, [autoPay, lines.length, hasAutoOpened]);
 
   // Line helpers
+  function getLineUnit(line: Line) {
+    if (line.unit) return line.unit;
+    const itemId = line.itemId?.replace("ITEM#", "");
+    return items.find((item) =>
+      item.pk === line.itemId || item.pk.replace("ITEM#", "") === itemId
+    )?.unit;
+  }
+
   function addItem(item: Item) {
     const autoDiscount = getCustomerDiscountAmount(customer, item.price);
     setLines(prev => {
@@ -254,7 +273,7 @@ function PosInner() {
           };
         });
       }
-      return [...prev, { itemId: item.pk, description: item.name, qty: 1, unitPrice: item.price, discount: autoDiscount }];
+      return [...prev, { itemId: item.pk, description: item.name, qty: 1, unitPrice: item.price, discount: autoDiscount, unit: item.unit }];
     });
     setMsg(null);
   }
@@ -265,11 +284,14 @@ function PosInner() {
   function setLineQty(i: number, qty: number) {
     setLines(prev => prev.map((line, j) => {
       if (j !== i) return line;
+      const unit = getLineUnit(line);
+      const nextQty = normalizeQty(qty, unit);
       return {
         ...line,
-        qty,
+        unit,
+        qty: nextQty,
         discount: hasCustomerDiscount(customer)
-          ? getCustomerDiscountAmount(customer, line.unitPrice, qty)
+          ? getCustomerDiscountAmount(customer, line.unitPrice, nextQty)
           : line.discount,
       };
     }));
@@ -554,30 +576,40 @@ function PosInner() {
               <tbody>
                 {lines.length === 0 ? (
                   <tr><td colSpan={6} className="px-3 py-20 text-center text-slate-400 text-sm">Click items on the right to add them</td></tr>
-                ) : lines.map((l, i) => (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50/70">
-                    <td className="px-3 py-1.5 text-slate-800 font-medium">{l.description}</td>
-                    <td className="px-2 py-1.5">
-                      <input type="number" min={0.01} step={0.01} value={l.qty}
-                        onChange={(e) => setLineQty(i, Number(e.target.value))}
-                        className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400" />
-                    </td>
-                    <td className="px-2 py-1.5 text-center text-slate-700">{l.unitPrice.toFixed(2)}</td>
-                    <td className="px-2 py-1.5">
-                      <input type="number" min={0} step={0.01} value={l.discount}
-                        onChange={(e) => setLine(i, { discount: Number(e.target.value) })}
-                        className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400" />
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-semibold text-slate-900">
-                      {(l.qty * l.unitPrice - l.discount).toFixed(2)}
-                    </td>
-                    <td className="px-1 py-1.5 text-center">
-                      <button type="button" onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 p-0.5">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                ) : lines.map((l, i) => {
+                  const lineUnit = getLineUnit(l);
+                  const decimalQty = canUseDecimalQty(lineUnit);
+
+                  return (
+                    <tr key={i} className="border-b border-slate-100 hover:bg-slate-50/70">
+                      <td className="px-3 py-1.5 text-slate-800 font-medium">{l.description}</td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="number"
+                          min={decimalQty ? 0.01 : 1}
+                          step={decimalQty ? 0.01 : 1}
+                          value={l.qty}
+                          onChange={(e) => setLineQty(i, Number(e.target.value))}
+                          className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 text-center text-slate-700">{l.unitPrice.toFixed(2)}</td>
+                      <td className="px-2 py-1.5">
+                        <input type="number" min={0} step={0.01} value={l.discount}
+                          onChange={(e) => setLine(i, { discount: Number(e.target.value) })}
+                          className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400" />
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-semibold text-slate-900">
+                        {(l.qty * l.unitPrice - l.discount).toFixed(2)}
+                      </td>
+                      <td className="px-1 py-1.5 text-center">
+                        <button type="button" onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 p-0.5">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
