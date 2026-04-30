@@ -1,0 +1,285 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ChevronDown, Pencil, Trash2, X } from "lucide-react";
+import { PageScaffold } from "@/components/PageScaffold";
+import { api } from "@/lib/api";
+
+type Expense = {
+  pk: string;
+  date: string;
+  categoryId?: string;
+  categoryName?: string;
+  referenceNo?: string;
+  expenseFor?: string;
+  amount: number;
+  note?: string;
+  createdBy?: string;
+  attachment?: {
+    fileName: string;
+    mimeType: string;
+    size: number;
+    url: string;
+  };
+};
+type Category = { pk: string; name: string };
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+function fmtDate(d: string) {
+  if (!d) return "";
+  const parts = d.split("-");
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return d;
+}
+
+function attachmentHref(url?: string) {
+  if (!url) return "";
+  return url.startsWith("http") ? url : `${API_BASE}${url}`;
+}
+
+export default function ExpenseListPage() {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [perPage, setPerPage] = useState(10);
+  const [page, setPage] = useState(1);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [editExp, setEditExp] = useState<Expense | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Expense>>({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [expRes, catRes] = await Promise.all([
+      api<{ expenses: Expense[] }>("/api/expenses"),
+      api<{ categories: Category[] }>("/api/expenses/categories/list"),
+    ]);
+    setLoading(false);
+    if (expRes.ok && expRes.data?.expenses) setExpenses(expRes.data.expenses.filter((e) => e.pk?.startsWith("EXPENSE#")));
+    if (catRes.ok && catRes.data?.categories) setCategories(catRes.data.categories.filter((c) => c.pk?.startsWith("EXPENSE_CAT#")));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    function handler() { setOpenActionId(null); }
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
+
+  const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.pk, c.name])), [categories]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return expenses.filter((e) => {
+      return !q ||
+        (e.expenseFor || "").toLowerCase().includes(q) ||
+        (e.note || "").toLowerCase().includes(q) ||
+        (e.referenceNo || "").toLowerCase().includes(q) ||
+        (catMap[e.categoryId || ""] || e.categoryName || "").toLowerCase().includes(q);
+    });
+  }, [expenses, search, catMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const totalAmount = filtered.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
+
+  async function deleteExp(e: Expense) {
+    if (!confirm("Delete this expense?")) return;
+    const id = e.pk.replace("EXPENSE#", "");
+    await api(`/api/expenses/${id}`, { method: "DELETE" });
+    setExpenses((prev) => prev.filter((x) => x.pk !== e.pk));
+    setOpenActionId(null);
+  }
+
+  function openEdit(e: Expense) {
+    setEditExp(e);
+    setEditForm({ ...e });
+    setOpenActionId(null);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editExp) return;
+    setEditSaving(true);
+    const id = editExp.pk.replace("EXPENSE#", "");
+    const selectedCat = categories.find((c) => c.pk === editForm.categoryId);
+    const res = await api(`/api/expenses/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...editForm, categoryName: selectedCat?.name }),
+    });
+    setEditSaving(false);
+    if (!res.ok) return;
+    setExpenses((prev) => prev.map((x) => (x.pk === editExp.pk ? { ...x, ...editForm, categoryName: selectedCat?.name } : x)));
+    setEditExp(null);
+  }
+
+  function downloadCSV() {
+    const header = "Date,Category,Reference No.,Expense for,Amount,Note,Attachment,Created by";
+    const rows = filtered.map((e) => [
+      fmtDate(e.date),
+      `"${catMap[e.categoryId || ""] || e.categoryName || ""}"`,
+      `"${e.referenceNo || ""}"`,
+      `"${e.expenseFor || ""}"`,
+      Number(e.amount ?? 0).toFixed(2),
+      `"${e.note || ""}"`,
+      `"${e.attachment?.fileName || ""}"`,
+      e.createdBy || "",
+    ].join(","));
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "expenses.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const pageButtons = useMemo(() => {
+    const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+    return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
+  }, [page, totalPages]);
+
+  return (
+    <PageScaffold title="Expenses List" subtitle="View/Search Expenses">
+      <div className="bg-white border border-slate-200 rounded-sm">
+        <div className="px-4 py-3 flex items-center justify-end border-b border-slate-200">
+          <Link href="/expenses/new" className="bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold px-4 py-2 rounded transition-colors">+ New Expense</Link>
+        </div>
+
+        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/60">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <span>Show</span>
+            <select value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none">
+              {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span>entries</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[{ label: "Copy", fn: () => navigator.clipboard.writeText(filtered.map((e) => `${fmtDate(e.date)}\t${e.expenseFor}\t${e.amount}`).join("\n")) },
+              { label: "Excel", fn: () => {} }, { label: "PDF", fn: () => {} },
+              { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }, { label: "Columns", fn: () => {} }].map((btn) => (
+              <button key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
+            ))}
+            <div className="flex items-center gap-1 ml-1">
+              <span className="text-sm text-slate-600">Search:</span>
+              <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 w-36" />
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-blue-600 text-white text-xs">
+                <th className="px-3 py-2.5 w-8"><input type="checkbox" /></th>
+                {["Date", "Category", "Reference No.", "Expense for", "Amount", "Note", "Attachment", "Created by", "Action"].map((h) => (
+                  <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={9} className="px-4 py-16 text-center text-slate-400 text-sm">Loading…</td></tr>
+              ) : paginated.length === 0 ? (
+                <tr><td colSpan={9} className="px-4 py-16 text-center text-slate-400 text-sm">No expenses found</td></tr>
+              ) : paginated.map((e, i) => (
+                <tr key={e.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
+                  <td className="px-3 py-2 text-center"><input type="checkbox" /></td>
+                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
+                  <td className="px-3 py-2 text-slate-700">{catMap[e.categoryId || ""] || e.categoryName || "—"}</td>
+                  <td className="px-3 py-2 text-slate-500 text-xs">{e.referenceNo || ""}</td>
+                  <td className="px-3 py-2 text-slate-700">{e.expenseFor || "—"}</td>
+                  <td className="px-3 py-2 font-medium text-slate-800">{Number(e.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-2 text-slate-500 text-xs max-w-xs truncate">{e.note || ""}</td>
+                  <td className="px-3 py-2 text-xs">
+                    {e.attachment?.url ? (
+                      <a href={attachmentHref(e.attachment.url)} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
+                        {e.attachment.fileName || "Open file"}
+                      </a>
+                    ) : "-"}
+                  </td>
+                  <td className="px-3 py-2 text-slate-500 text-xs">{e.createdBy || ""}</td>
+                  <td className="px-3 py-2">
+                    <div className="relative inline-block" onClick={(ev) => ev.stopPropagation()}>
+                      <button onClick={() => setOpenActionId(openActionId === e.pk ? null : e.pk)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors">
+                        Action <ChevronDown className="w-3 h-3" />
+                      </button>
+                      {openActionId === e.pk && (
+                        <div className="absolute right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-20 min-w-36 py-1">
+                          <button onClick={() => openEdit(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
+                          <button onClick={() => deleteExp(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {!loading && filtered.length > 0 && (
+              <tfoot>
+                <tr className="bg-slate-100 border-t-2 border-slate-300">
+                  <td colSpan={5} className="px-3 py-2.5 text-right font-semibold text-slate-700 text-sm">Total</td>
+                  <td className="px-3 py-2.5 font-bold text-slate-800">{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+                  <td colSpan={4} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 text-sm text-slate-500">
+          <div>{loading ? "Loading…" : `Showing ${filtered.length === 0 ? 0 : (page - 1) * perPage + 1} to ${Math.min(page * perPage, filtered.length)} of ${filtered.length} entries`}</div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={page === 1} className="px-3 py-1 border border-slate-200 rounded text-xs disabled:opacity-40 hover:bg-slate-50">Previous</button>
+            {pageButtons.map((p) => <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 border rounded text-xs ${p === page ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 hover:bg-slate-50"}`}>{p}</button>)}
+            <button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages} className="px-3 py-1 border border-slate-200 rounded text-xs disabled:opacity-40 hover:bg-slate-50">Next</button>
+          </div>
+        </div>
+      </div>
+
+      {editExp && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+              <h2 className="font-semibold text-slate-800">Edit Expense</h2>
+              <button onClick={() => setEditExp(null)}><X className="w-5 h-5 text-slate-400" /></button>
+            </div>
+            <form onSubmit={saveEdit} className="p-5 grid grid-cols-2 gap-3">
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-xs text-slate-500 mb-1 block">Date*</label>
+                <input required type="date" value={editForm.date || ""} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-xs text-slate-500 mb-1 block">Reference No.</label>
+                <input value={editForm.referenceNo || ""} onChange={(e) => setEditForm((f) => ({ ...f, referenceNo: e.target.value }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-xs text-slate-500 mb-1 block">Category*</label>
+                <select required value={editForm.categoryId || ""} onChange={(e) => setEditForm((f) => ({ ...f, categoryId: e.target.value }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 bg-white">
+                  <option value="">-Select-</option>
+                  {categories.map((c) => <option key={c.pk} value={c.pk}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-xs text-slate-500 mb-1 block">Amount*</label>
+                <input required type="number" min={0} step={0.01} value={editForm.amount ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, amount: Number(e.target.value) }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-xs text-slate-500 mb-1 block">Expense for*</label>
+                <input required value={editForm.expenseFor || ""} onChange={(e) => setEditForm((f) => ({ ...f, expenseFor: e.target.value }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs text-slate-500 mb-1 block">Note</label>
+                <textarea value={editForm.note || ""} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))} rows={2} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              </div>
+              <div className="col-span-2 flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setEditExp(null)} className="px-4 py-2 border border-slate-300 rounded text-sm hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={editSaving} className="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60">{editSaving ? "Saving…" : "Save Changes"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </PageScaffold>
+  );
+}

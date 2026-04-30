@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface2: #edf3ff;
+  --surface3: #f8fafc;
+  --border: #dfe4ee;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --muted: #667085;
+  --foreground: #111827;
+  --foreground2: #344054;
+  --sidebar-bg-solid: #111827;
+  --sidebar-bg: linear-gradient(180deg, #111827 0%, #172554 52%, #0f766e 120%);
+  --sidebar-text: rgba(239,246,255,0.88);
+  --sidebar-subtext: rgba(219,234,254,0.68);
+  --sidebar-active-bg: linear-gradient(90deg, rgba(37,99,235,0.92), rgba(13,148,136,0.72));
+  --sidebar-sub-active-bg: rgba(255,255,255,0.13);
+  --sidebar-hover-bg: rgba(255,255,255,0.08);
+  --header-bg: rgba(255,255,255,0.88);
+  --header-border: rgba(209,213,219,0.78);
+}
+
+.dark {
+  --bg: #080d18;
+  --surface: #101827;
+  --surface2: #162033;
+  --surface3: #1b2638;
+  --border: #2a3547;
+  --accent: #5eead4;
+  --accent-hover: #0ea5e9;
+  --muted: #9aa8bd;
+  --foreground: #f8fafc;
+  --foreground2: #d1d9e6;
+  --sidebar-bg-solid: #07111f;
+  --sidebar-bg: linear-gradient(180deg, #07111f 0%, #111827 52%, #083344 120%);
+  --sidebar-text: rgba(239,246,255,0.90);
+  --sidebar-subtext: rgba(203,213,225,0.70);
+  --sidebar-active-bg: linear-gradient(90deg, rgba(14,165,233,0.62), rgba(20,184,166,0.42));
+  --sidebar-sub-active-bg: rgba(56,189,248,0.14);
+  --sidebar-hover-bg: rgba(255,255,255,0.06);
+  --header-bg: rgba(11,16,32,0.86);
+  --header-border: rgba(39,52,73,0.85);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--foreground);
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: optimizeLegibility;
+  transition: background 0.2s, color 0.2s;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.01em;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  letter-spacing: 0;
+}
+
+.app-content {
+  scrollbar-gutter: stable;
+}
+
+.app-content,
+.sidebar-scroll,
+.header-tabs {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+
+.app-content::-webkit-scrollbar,
+.sidebar-scroll::-webkit-scrollbar,
+.header-tabs::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+.app-content::-webkit-scrollbar-thumb,
+.sidebar-scroll::-webkit-scrollbar-thumb,
+.header-tabs::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 999px;
+}
+
+.app-content table {
+  min-width: max-content;
+}
+
+.app-content table th,
+.app-content table td {
+  vertical-align: middle;
+}
+
+.app-content .bg-white,
+.app-content .bg-slate-50,
+.app-content .bg-slate-100 {
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.app-content .bg-white {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.app-content .rounded,
+.app-content .rounded-md,
+.app-content .rounded-lg,
+.app-content .rounded-xl,
+.app-content .rounded-2xl {
+  border-radius: 10px;
+}
+
+.dark .app-content .bg-white {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+
+.dark .app-content .bg-slate-50,
+.dark .app-content .bg-slate-100,
+.dark .app-content .bg-gray-50,
+.dark .app-content .bg-gray-100 {
+  background-color: var(--surface2) !important;
+}
+
+.dark .app-content .border,
+.dark .app-content [class*="border-slate-"],
+.dark .app-content [class*="border-gray-"] {
+  border-color: var(--border) !important;
+}
+
+.dark .app-content input,
+.dark .app-content select,
+.dark .app-content textarea {
+  background-color: #0d1423 !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
+
+.dark .app-content input::placeholder,
+.dark .app-content textarea::placeholder {
+  color: #74839a !important;
+}
+
+.dark .app-content table {
+  color: var(--foreground2);
+}
+
+.dark .app-content thead.bg-slate-50,
+.dark .app-content thead.bg-slate-100 {
+  background-color: #182337 !important;
+}
+
+.dark .app-content tr:hover,
+.dark .app-content .hover\:bg-slate-50\/70:hover,
+.dark .app-content .hover\:bg-slate-50:hover {
+  background-color: rgba(94, 234, 212, 0.07) !important;
+}
+
+.dark .app-content [class*="text-slate-900"],
+.dark .app-content [class*="text-gray-900"],
+.dark .app-content [class*="text-slate-800"],
+.dark .app-content [class*="text-gray-800"] {
+  color: var(--foreground) !important;
+}
+
+.dark .app-content [class*="text-slate-700"],
+.dark .app-content [class*="text-gray-700"],
+.dark .app-content [class*="text-slate-600"],
+.dark .app-content [class*="text-gray-600"] {
+  color: var(--foreground2) !important;
+}
+
+.dark .app-content [class*="text-slate-500"],
+.dark .app-content [class*="text-gray-500"],
+.dark .app-content [class*="text-slate-400"],
+.dark .app-content [class*="text-gray-400"] {
+  color: var(--muted) !important;
+}
+
+.dark .app-content .shadow,
+.dark .app-content .shadow-sm,
+.dark .app-content .shadow-md,
+.dark .app-content .shadow-lg,
+.dark .app-content .shadow-xl {
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32) !important;
+}
+
+@media (max-width: 640px) {
+  .app-content table {
+    font-size: 12px;
+  }
+
+  .app-content input,
+  .app-content select,
+  .app-content textarea {
+    font-size: 16px;
+  }
+}
+
+/* subtle mesh for login */
+.mesh-bg {
+  background-color: #042f2e;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.35), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(13, 148, 136, 0.4), transparent),
+    radial-gradient(ellipse 50% 30% at 0% 100%, rgba(15, 118, 110, 0.35), transparent);
+}
+
+.card-shadow {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 16px 48px rgba(15, 23, 42, 0.10);
+}
