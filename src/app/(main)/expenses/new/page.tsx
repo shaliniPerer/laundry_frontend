@@ -9,10 +9,6 @@ import { api } from "@/lib/api";
 type Category = { pk: string; name: string };
 type AttachmentDraft = { fileName: string; mimeType: string; size: number; dataUrl: string };
 
-function todayDisplay() {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-}
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 export default function NewExpensePage() {

@@ -21,12 +21,6 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function fmtDisplay(iso: string) {
-  if (!iso) return "";
-  const p = iso.split("-");
-  return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : iso;
-}
-
 export function StandardReportLayout({
   title,
   filters,
@@ -189,7 +183,7 @@ export function StandardReportLayout({
               {!shown ? (
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-16 text-center text-slate-400 text-sm">
-                    Click "Show" to load results
+                    Click &quot;Show&quot; to load results
                   </td>
                 </tr>
               ) : loading ? (

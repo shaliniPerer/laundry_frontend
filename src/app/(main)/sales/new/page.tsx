@@ -46,7 +46,7 @@ export default function NewSalePage() {
   const [otherChargesType, setOtherChargesType] = useState("None");
   const [discountOnAll, setDiscountOnAll] = useState(0);
   const [discountOnAllType, setDiscountOnAllType] = useState("Per%");
-  const [roundOff, setRoundOff] = useState(0);
+  const [roundOff] = useState(0);
   const [note, setNote] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payType, setPayType] = useState("");

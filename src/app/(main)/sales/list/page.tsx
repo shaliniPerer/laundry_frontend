@@ -12,7 +12,6 @@ import {
   Eye,
   Pencil,
   CreditCard,
-  DollarSign,
   Printer,
   FileText,
   ReceiptText,

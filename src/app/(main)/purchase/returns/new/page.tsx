@@ -43,7 +43,7 @@ export default function NewPurchaseReturnPage() {
   const [referenceNo, setReferenceNo] = useState("");
   const [otherCharges, setOtherCharges] = useState(0);
   const [discountOnAll, setDiscountOnAll] = useState(0);
-  const [roundOff, setRoundOff] = useState(0);
+  const [roundOff] = useState(0);
   const [note, setNote] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payType, setPayType] = useState("");
