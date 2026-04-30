@@ -39,6 +39,9 @@ type Stats = {
   monthlySales: { month: string; total: number }[];
 };
 
+type OverviewRangeType = "today" | "this_week" | "this_month" | "custom";
+type DeliveryRangeType = OverviewRangeType | "tomorrow";
+
 // ─── Charts ──────────────────────────────────────────────────────────────────
 
 function BarChart({
@@ -208,7 +211,7 @@ function toISODate(d: Date) {
 }
 
 function getDateRange(
-  rangeType: "today" | "this_week" | "this_month" | "custom",
+  rangeType: OverviewRangeType,
   fromDate: string,
   toDate: string
 ) {
@@ -266,14 +269,10 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [rangeType, setRangeType] = useState<
-    "today" | "tomorrow" | "this_week" | "this_month" | "custom"
-  >("today");
+  const [rangeType, setRangeType] = useState<DeliveryRangeType>("today");
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
-  const [overviewRangeType, setOverviewRangeType] = useState<
-    "today" | "this_week" | "this_month" | "custom"
-  >("this_month");
+  const [overviewRangeType, setOverviewRangeType] = useState<OverviewRangeType>("this_month");
   const [overviewFromDate, setOverviewFromDate] = useState(today);
   const [overviewToDate, setOverviewToDate] = useState(today);
   const [salesYear, setSalesYear] = useState(new Date().getFullYear());
@@ -376,7 +375,7 @@ export default function DashboardPage() {
     return Array.from({ length: 6 }, (_, i) => currentYear - i);
   }, []);
 
-  function DateRangeToolbar({
+  function DateRangeToolbar<T extends DeliveryRangeType>({
     value,
     from,
     to,
@@ -385,12 +384,10 @@ export default function DashboardPage() {
     onToChange,
     includeTomorrow = false,
   }: {
-    value: "today" | "tomorrow" | "this_week" | "this_month" | "custom";
+    value: T;
     from: string;
     to: string;
-    onValueChange: (
-      value: "today" | "tomorrow" | "this_week" | "this_month" | "custom"
-    ) => void;
+    onValueChange: (value: T) => void;
     onFromChange: (value: string) => void;
     onToChange: (value: string) => void;
     includeTomorrow?: boolean;
@@ -401,9 +398,7 @@ export default function DashboardPage() {
           <select
             value={value}
             onChange={(e) =>
-              onValueChange(
-                e.target.value as "today" | "tomorrow" | "this_week" | "this_month" | "custom"
-              )
+              onValueChange(e.target.value as T)
             }
             className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
           >
