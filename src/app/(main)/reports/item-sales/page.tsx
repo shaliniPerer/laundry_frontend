@@ -13,7 +13,14 @@ export default function ItemSalesReportPage() {
       filters={[
         { key: "from", label: "From Date", type: "date" },
         { key: "to", label: "To Date", type: "date" },
-        { key: "itemName", label: "Item Name", type: "text", placeholder: "Search Item" },
+        {
+          key: "itemName", label: "Item Name", type: "select",
+          options: ["-All-"],
+          fetchOptions: async () => {
+            const res = await api<{ items: Item[] }>("/api/items");
+            return (res.data?.items ?? []).filter((i) => i.entityType === "ITEM").map((i) => i.name ?? "").filter(Boolean);
+          },
+        },
         { key: "category", label: "Category", type: "text", placeholder: "Search Category" },
       ]}
       columns={[
@@ -54,7 +61,7 @@ export default function ItemSalesReportPage() {
           }
         }
         return Object.values(agg)
-          .filter((r) => !form.itemName || r.name.toLowerCase().includes(form.itemName.toLowerCase()))
+          .filter((r) => !form.itemName || form.itemName === "-All-" || r.name.toLowerCase() === form.itemName.toLowerCase())
           .map((r) => ({
             itemName: r.name,
             unit: "",

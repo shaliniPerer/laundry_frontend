@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
 
 type Expense = {
@@ -200,17 +201,10 @@ export default function ExpenseListPage() {
                   </td>
                   <td className="px-3 py-2 text-slate-500 text-xs">{e.createdBy || ""}</td>
                   <td className="px-3 py-2">
-                    <div className="relative inline-block" onClick={(ev) => ev.stopPropagation()}>
-                      <button onClick={() => setOpenActionId(openActionId === e.pk ? null : e.pk)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors">
-                        Action <ChevronDown className="w-3 h-3" />
-                      </button>
-                      {openActionId === e.pk && (
-                        <div className="absolute right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-20 min-w-36 py-1">
-                          <button onClick={() => openEdit(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
-                          <button onClick={() => deleteExp(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
-                        </div>
-                      )}
-                    </div>
+                    <DropdownMenu>
+                      <button onClick={() => openEdit(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
+                      <button onClick={() => deleteExp(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))}

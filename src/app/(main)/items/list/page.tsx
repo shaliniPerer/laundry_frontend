@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
 
 type Item = {
@@ -72,11 +73,11 @@ export default function ItemListPage() {
   }
 
   function downloadCSV() {
-    const header = "Item Code,Item Name,Service,Laundry Type,Unit, Price,Status";
+    const header = "Item Code,Item Name,Laundry Type,Service,Unit, Price,Status";
     const rows = filtered.map((item) => [
       `"${item.itemNumber || ""}"`, `"${item.name}"`,
-      `"${brandMap[item.brandId || ""] || ""}"`, `"${catMap[item.categoryId || ""] || ""}"`,
-      item.status || "active",
+      `"${catMap[item.categoryId || ""] || ""}"`, `"${brandMap[item.brandId || ""] || ""}"`,
+      `"${item.unit || ""}"`, `"${item.price || ""}"`, `"${item.status || "active"}"`,
     ].join(","));
     const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -136,7 +137,7 @@ export default function ItemListPage() {
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8"><input type="checkbox" /></th>
                 
-                {["Item Code", "Item Name", "Service", "Laundry Type", "Unit",  "Price",  "Status", "Action"].map((h) => (
+                {["Item Code", "Item Name", "Laundry Type", "Service", "Unit",  "Price(LKR)",  "Status", "Action"].map((h) => (
                   <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
                 ))}
               </tr>
@@ -156,46 +157,25 @@ export default function ItemListPage() {
                   <td className="px-3 py-2 text-slate-600 text-xs">{brandMap[item.brandId || ""] || "—"}</td>
                   <td className="px-3 py-2 text-slate-600 text-xs">{catMap[item.categoryId || ""] || "—"}</td>
                   <td className="px-3 py-2 text-slate-600 text-xs">{item.unit || "—"}</td>
-                  <td className="px-3 py-2 text-slate-600 text-xs">{item.price != null ? `$${item.price.toFixed(2)}` : "—"}</td>
+                  <td className="px-3 py-2 text-slate-600 text-xs">{item.price != null ? `${item.price.toFixed(2)}` : "—"}</td>
                   <td className="px-3 py-2"><span className="bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded">{(item.status || "active") === "active" ? "Active" : item.status}</span></td>
                   <td className="px-3 py-2">
-                    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenActionId(openActionId === item.pk ? null : item.pk);
-                        }}
-                        className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+                        onClick={() => router.push(`/items/new?edit=${item.pk.replace("ITEM#", "")}`)}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
                       >
-                        Action <ChevronDown className="w-3 h-3" />
+                        <Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit
                       </button>
-                      {openActionId === item.pk && (
-                        <div className="absolute right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-20 min-w-36 py-1">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenActionId(null);
-                              router.push(`/items/new?edit=${item.pk.replace("ITEM#", "")}`);
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteItem(item);
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteItem(item)}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))}

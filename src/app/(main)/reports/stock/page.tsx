@@ -12,7 +12,14 @@ export default function StockReportPage() {
       filters={[
         { key: "from", label: "From Date", type: "date" },
         { key: "to", label: "To Date", type: "date" },
-        { key: "itemName", label: "Item Name", type: "text", placeholder: "Search Item" },
+        {
+          key: "itemName", label: "Item Name", type: "select",
+          options: ["-All-"],
+          fetchOptions: async () => {
+            const res = await api<{ items: Item[] }>("/api/items");
+            return (res.data?.items ?? []).filter((i) => i.entityType === "ITEM").map((i) => i.name ?? "").filter(Boolean);
+          },
+        },
         { key: "status", label: "Status", type: "select", options: ["-All-", "Active", "Inactive"] },
       ]}
       columns={[
@@ -27,7 +34,7 @@ export default function StockReportPage() {
         if (!res.ok || !res.data?.items) return [];
         return res.data.items
           .filter((i) => i.entityType === "ITEM")
-          .filter((i) => !form.itemName || (i.name ?? "").toLowerCase().includes(form.itemName.toLowerCase()))
+          .filter((i) => !form.itemName || form.itemName === "-All-" || (i.name ?? "").toLowerCase() === form.itemName.toLowerCase())
           .filter((i) => form.status === "-All-" || !form.status || (i.status ?? "active") === form.status.toLowerCase())
           .map((i) => ({
             itemName: i.name || "",

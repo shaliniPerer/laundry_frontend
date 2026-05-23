@@ -4,15 +4,27 @@ import { useEffect, useState } from "react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
 
-type Row = { id?: string; name?: string; email?: string };
+type Row = { id?: string; name?: string; email?: string; phone?: string; roleId?: string; userNumber?: string };
+type Role = { pk?: string; name?: string };
 
 export default function UsersListPage() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [roleMap, setRoleMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     (async () => {
-      const res = await api<{ users: Row[] }>("/api/admin/users");
-      if (res.ok && res.data?.users) setRows(res.data.users);
+      const [usersRes, rolesRes] = await Promise.all([
+        api<{ users: Row[] }>("/api/admin/users"),
+        api<{ roles: Role[] }>("/api/admin/roles"),
+      ]);
+      if (usersRes.ok && usersRes.data?.users) setRows(usersRes.data.users);
+      if (rolesRes.ok && rolesRes.data?.roles) {
+        const map: Record<string, string> = {};
+        for (const r of rolesRes.data.roles) {
+          if (r.pk) map[r.pk] = r.name ?? r.pk;
+        }
+        setRoleMap(map);
+      }
     })();
   }, []);
 
@@ -24,18 +36,22 @@ export default function UsersListPage() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 text-left text-slate-600">
+              <tr className="bg-blue-600 text-left text-white text-xs uppercase">
+                <th className="px-4 py-3 font-medium">User ID</th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">ID</th>
+                <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 font-medium">Role</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id || i} className="border-t border-slate-100">
+                <tr key={r.id || i} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">{r.userNumber || `USER${String(i + 1).padStart(3, "0")}`}</td>
                   <td className="px-4 py-3 font-medium">{r.name}</td>
                   <td className="px-4 py-3">{r.email}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.id}</td>
+                  <td className="px-4 py-3">{r.phone || "—"}</td>
+                  <td className="px-4 py-3">{r.roleId ? (roleMap[r.roleId] || r.roleId) : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -45,3 +61,4 @@ export default function UsersListPage() {
     </PageScaffold>
   );
 }
+

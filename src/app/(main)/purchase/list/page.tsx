@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ShoppingBag, Plus, RefreshCw, Hourglass, Trash2, Pencil } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
 
 type Purchase = {
@@ -264,30 +265,20 @@ export default function PurchaseListPage() {
                       </td>
                       <td className="px-3 py-2 text-slate-600">{p.createdBy || "—"}</td>
                       <td className="px-3 py-2 text-center">
-                        <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => setOpenActionId(openActionId === p.pk ? null : p.pk)}
-                            className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+                        <DropdownMenu>
+                          <Link
+                            href={`/purchase/new?edit=${p.pk.replace("PURCHASE#", "")}`}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
                           >
-                            Action <ChevronDown className="w-3 h-3" />
+                            <Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit
+                          </Link>
+                          <button
+                            onClick={() => deletePurchase(p)}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
                           </button>
-                          {openActionId === p.pk && (
-                            <div className="absolute right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-20 min-w-40 py-1">
-                              <Link
-                                href={`/purchase/new?edit=${p.pk.replace("PURCHASE#", "")}`}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit
-                              </Link>
-                              <button
-                                onClick={() => deletePurchase(p)}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );

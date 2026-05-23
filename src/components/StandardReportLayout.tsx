@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronDown } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
@@ -13,6 +13,7 @@ export type ReportFilter = {
   type?: "date" | "text" | "select";
   placeholder?: string;
   options?: string[];
+  fetchOptions?: () => Promise<string[]>;
 };
 
 type ReportRow = Record<string, string | number | undefined>;
@@ -43,6 +44,21 @@ export function StandardReportLayout({
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [shown, setShown] = useState(false);
+  const [dynOptions, setDynOptions] = useState<Record<string, string[]>>({});
+
+  // Load dynamic options for filters that have fetchOptions
+  useEffect(() => {
+    for (const f of filters) {
+      if (f.fetchOptions) {
+        f.fetchOptions().then((opts) => {
+          const withAll = ["-All-", ...opts.filter(Boolean).sort()];
+          setDynOptions((prev) => ({ ...prev, [f.key]: withAll }));
+          setForm((prev) => ({ ...prev, [f.key]: prev[f.key] || "-All-" }));
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleShow(e: React.FormEvent) {
     e.preventDefault();
@@ -83,6 +99,7 @@ export function StandardReportLayout({
       );
     }
     if (f.type === "select") {
+      const opts = dynOptions[f.key] ?? f.options ?? [];
       return (
         <div className="relative flex-1">
           <select
@@ -90,7 +107,7 @@ export function StandardReportLayout({
             onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
             className={`${inputCls} bg-white appearance-none pr-8`}
           >
-            {f.options?.map((o) => <option key={o} value={o}>{o}</option>)}
+            {opts.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>

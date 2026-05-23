@@ -22,7 +22,7 @@ type Customer = {
   discount?: number;
 };
 
-type Line = { itemId?: string; description: string; qty: number; unitPrice: number; discount: number; unit?: string };
+type Line = { itemId?: string; description: string; qty: number; unitPrice: number; discount: number; discountStr?: string; unit?: string };
 
 type MultiPayment = { id: string; type: "Cash" | "Card" | "Bank Transfer"; amount: number; cardLast4?: string; note?: string };
 
@@ -32,10 +32,22 @@ type HeldOrder = {
   customer: Customer;
   lines: Line[];
   deliveryDate: string;
+  deliveryTime?: string;
   otherCharges: number;
+  posDiscount?: number;
+  posDiscountType?: "percentage" | "fixed";
   total: number;
   savedAt: string;
 };
+
+const COUNTRIES = ["Sri Lanka","India","United Kingdom","United States","Australia","Canada","Singapore","Malaysia","Other"];
+
+type NewCustomerForm = {
+  name: string; mobile: string; email: string; phone: string;
+  country: string; city: string; address: string;
+};
+
+const INITIAL_NEW_CUST: NewCustomerForm = { name: "", mobile: "", email: "", phone: "", country: "Sri Lanka", city: "", address: "" };
 
 const WALK_IN: Customer = { pk: "", name: "Walk-in Customer" };
 const HOLD_KEY = "pos_held_orders";
@@ -90,10 +102,17 @@ function PosInner() {
   const holdId = searchParams.get("holdId");
 
   const [deliveryDate, setDeliveryDate] = useState(todayISO());
+  const [deliveryTime, setDeliveryTime] = useState("");
   const [customer, setCustomer] = useState<Customer>(WALK_IN);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDrop, setShowCustomerDrop] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+
+  // New customer modal
+  const [showNewCustModal, setShowNewCustModal] = useState(false);
+  const [newCustForm, setNewCustForm] = useState<NewCustomerForm>(INITIAL_NEW_CUST);
+  const [savingNewCust, setSavingNewCust] = useState(false);
+  const [newCustMsg, setNewCustMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -104,6 +123,9 @@ function PosInner() {
 
   const [lines, setLines] = useState<Line[]>([]);
   const [otherCharges, setOtherCharges] = useState(0);
+  const [posDiscount, setPosDiscount] = useState(0);
+  const [posDiscountType, setPosDiscountType] = useState<"percentage" | "fixed">("fixed");
+  const [posDiscountStr, setPosDiscountStr] = useState<string | undefined>(undefined);
   const [sendSms, setSendSms] = useState(true);
   const [previouslyPaid, setPreviouslyPaid] = useState(0);
 
@@ -160,11 +182,14 @@ function PosInner() {
       const s = res.data as {
         customerName?: string; customerId?: string; customerMobile?: string;
         deliveryDate?: string; otherCharges?: number;
+        discountOnAll?: number; discountOnAllType?: string;
         lines?: Line[];
         paidAmount?: number;
       };
       setDeliveryDate(s.deliveryDate ?? todayISO());
       setOtherCharges(s.otherCharges ?? 0);
+      setPosDiscount(s.discountOnAll ?? 0);
+      setPosDiscountType((s.discountOnAllType as "percentage" | "fixed") ?? "fixed");
       setPreviouslyPaid(s.paidAmount ?? 0);
       if (s.lines) setLines(s.lines.map((l) => ({ ...l, discount: l.discount ?? 0 })));
 
@@ -199,7 +224,10 @@ function PosInner() {
     setCustomerSearch(heldCustomer.name);
     setLines(order.lines);
     setDeliveryDate(order.deliveryDate);
+    setDeliveryTime(order.deliveryTime ?? "");
     setOtherCharges(order.otherCharges);
+    setPosDiscount(order.posDiscount ?? 0);
+    setPosDiscountType(order.posDiscountType ?? "fixed");
     // Remove from held list
     saveHeldOrders(held.filter(h => h.id !== holdId));
   }, [holdId]);
@@ -225,7 +253,10 @@ function PosInner() {
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
   const totalAmount = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const totalDiscount = lines.reduce((s, l) => s + l.discount, 0);
-  const grandTotal = totalAmount - totalDiscount + otherCharges;
+  const posDiscountAmount = posDiscountType === "percentage"
+    ? Math.max(0, totalAmount - totalDiscount) * posDiscount / 100
+    : posDiscount;
+  const grandTotal = totalAmount - totalDiscount - posDiscountAmount + otherCharges;
   const multiTotalPaid = multiPayments.reduce((s, p) => s + p.amount, 0);
   const balance = grandTotal - previouslyPaid - multiTotalPaid;
 
@@ -257,23 +288,16 @@ function PosInner() {
   }
 
   function addItem(item: Item) {
-    const autoDiscount = getCustomerDiscountAmount(customer, item.price);
     setLines(prev => {
       const idx = prev.findIndex(l => l.itemId === item.pk);
       if (idx >= 0) {
         return prev.map((l, i) => {
           if (i !== idx) return l;
           const qty = l.qty + 1;
-          return {
-            ...l,
-            qty,
-            discount: hasCustomerDiscount(customer)
-              ? getCustomerDiscountAmount(customer, l.unitPrice, qty)
-              : l.discount,
-          };
+          return { ...l, qty };
         });
       }
-      return [...prev, { itemId: item.pk, description: item.name, qty: 1, unitPrice: item.price, discount: autoDiscount, unit: item.unit }];
+      return [...prev, { itemId: item.pk, description: item.name, qty: 1, unitPrice: item.price, discount: 0, unit: item.unit }];
     });
     setMsg(null);
   }
@@ -286,14 +310,7 @@ function PosInner() {
       if (j !== i) return line;
       const unit = getLineUnit(line);
       const nextQty = normalizeQty(qty, unit);
-      return {
-        ...line,
-        unit,
-        qty: nextQty,
-        discount: hasCustomerDiscount(customer)
-          ? getCustomerDiscountAmount(customer, line.unitPrice, nextQty)
-          : line.discount,
-      };
+      return { ...line, unit, qty: nextQty };
     }));
   }
   function removeLine(i: number) { setLines(prev => prev.filter((_, j) => j !== i)); }
@@ -303,12 +320,47 @@ function PosInner() {
     setCustomer(nextCustomer);
     setCustomerSearch(nextCustomer.pk ? nextCustomer.name : "");
     setShowCustomerDrop(false);
-    setLines((prev) =>
-      prev.map((line) => ({
-        ...line,
-        discount: getCustomerDiscountAmount(nextCustomer, line.unitPrice, line.qty),
-      }))
-    );
+    // Apply customer discount at invoice level, not per line
+    const disc = Number(nextCustomer.discount ?? 0);
+    if (nextCustomer.pk && disc > 0 && nextCustomer.discountType) {
+      setPosDiscount(disc);
+      setPosDiscountType(nextCustomer.discountType);
+    } else {
+      setPosDiscount(0);
+      setPosDiscountType("fixed");
+    }
+    setPosDiscountStr(undefined);
+  }
+
+  async function handleSaveNewCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    setNewCustMsg(null);
+    setSavingNewCust(true);
+    const res = await api<{ id: string; pk: string; name: string; mobile?: string; phone?: string; discountType?: "percentage" | "fixed"; discount?: number }>("/api/customers", {
+      method: "POST",
+      body: JSON.stringify({ ...newCustForm, status: "active" }),
+    });
+    setSavingNewCust(false);
+    if (!res.ok) {
+      setNewCustMsg({ type: "err", text: res.error || "Failed to save customer" });
+      return;
+    }
+    setNewCustMsg({ type: "ok", text: "Customer saved successfully." });
+    // Reload customers list then auto-select the new one
+    await loadData();
+    if (res.data) {
+      const newC = normalizeCustomer({
+        pk: res.data.pk,
+        name: res.data.name,
+        mobile: res.data.mobile,
+        phone: res.data.phone,
+        discountType: res.data.discountType,
+        discount: res.data.discount,
+      });
+      applyCustomerDiscount(newC);
+    }
+    setNewCustForm(INITIAL_NEW_CUST);
+    setShowNewCustModal(false);
   }
 
   // Hold
@@ -322,13 +374,19 @@ function PosInner() {
       customer,
       lines,
       deliveryDate,
+      deliveryTime,
       otherCharges,
+      posDiscount,
+      posDiscountType,
       total: grandTotal,
       savedAt: new Date().toISOString(),
     };
     saveHeldOrders([...held, order]);
     setLines([]);
     setOtherCharges(0);
+    setPosDiscount(0);
+    setPosDiscountType("fixed");
+    setPosDiscountStr(undefined);
     applyCustomerDiscount(WALK_IN);
     router.push("/sales/holds");
   }
@@ -388,7 +446,10 @@ function PosInner() {
           customerName: customer.name || undefined,
           customerMobile: customer.mobile ?? customer.phone,
           deliveryDate,
+          deliveryTime: deliveryTime || undefined,
           otherCharges,
+          discountOnAll: posDiscountAmount || undefined,
+          discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           lines: linePayload,
         }),
       });
@@ -402,7 +463,10 @@ function PosInner() {
           customerName: customer.name || undefined,
           customerMobile,
           deliveryDate,
+          deliveryTime: deliveryTime || undefined,
           otherCharges,
+          discountOnAll: posDiscountAmount || undefined,
+          discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           sendSms,
           payments: [],
           lines: linePayload,
@@ -455,7 +519,10 @@ function PosInner() {
           customerName: customer.name || undefined,
           customerMobile: customer.mobile ?? customer.phone,
           deliveryDate,
+          deliveryTime: deliveryTime || undefined,
           otherCharges,
+          discountOnAll: posDiscountAmount || undefined,
+          discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           lines: linePayload,
         }),
       });
@@ -477,7 +544,10 @@ function PosInner() {
           customerName: customer.name || undefined,
           customerMobile,
           deliveryDate,
+          deliveryTime: deliveryTime || undefined,
           otherCharges,
+          discountOnAll: posDiscountAmount || undefined,
+          discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           sendSms,
           payments,
           lines: linePayload,
@@ -523,7 +593,7 @@ function PosInner() {
                   value={customerSearch}
                   onChange={(e) => { setCustomerSearch(e.target.value); setShowCustomerDrop(true); }}
                   onFocus={() => setShowCustomerDrop(true)}
-                  placeholder="Walk-in Customer / Search..."
+                  placeholder="Search customer..."
                   className="w-full pl-9 pr-9 py-2 border border-slate-300 rounded text-sm outline-none focus:border-blue-400"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -553,11 +623,25 @@ function PosInner() {
                 )}
               </div>
 
-              {/* Delivery date */}
-              <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
-                className="w-full border border-slate-300 rounded px-2 py-2 text-sm outline-none focus:border-blue-400 sm:w-auto" />
+              {/* Add new customer button */}
+              <button
+                type="button"
+                onClick={() => { setNewCustForm(INITIAL_NEW_CUST); setNewCustMsg(null); setShowNewCustModal(true); }}
+                className="shrink-0 flex items-center justify-center w-9 h-9 rounded border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+                title="Add new customer">
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
-            <div className="mt-2 text-xs text-slate-500">{customerDiscountLabel}</div>
+            <div className="mt-2 text-xs text-slate-500">
+              {customer.pk && customer.discountType && Number(customer.discount ?? 0) > 0 ? (
+                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5 font-medium">
+                  Customer discount: {Number(customer.discount).toFixed(2)}{customer.discountType === "percentage" ? "%" : " fixed"}
+                  {totalDiscount > 0 && <span className="text-blue-500">— applied: {totalDiscount.toFixed(2)}</span>}
+                </span>
+              ) : (
+                <span>No customer discount</span>
+              )}
+            </div>
           </div>
 
           {/* Line items table */}
@@ -595,9 +679,24 @@ function PosInner() {
                       </td>
                       <td className="px-2 py-1.5 text-center text-slate-700">{l.unitPrice.toFixed(2)}</td>
                       <td className="px-2 py-1.5">
-                        <input type="number" min={0} step={0.01} value={l.discount}
-                          onChange={(e) => setLine(i, { discount: Number(e.target.value) })}
-                          className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400" />
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={l.discountStr !== undefined ? l.discountStr : (l.discount === 0 ? "" : String(l.discount))}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
+                              const num = raw === "" || raw === "." ? 0 : parseFloat(raw);
+                              setLine(i, { discountStr: raw, discount: isNaN(num) ? 0 : num });
+                            }
+                          }}
+                          onBlur={() => {
+                            const num = parseFloat(l.discountStr ?? "0") || 0;
+                            setLine(i, { discountStr: undefined, discount: num });
+                          }}
+                          className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400"
+                        />
                       </td>
                       <td className="px-2 py-1.5 text-right font-semibold text-slate-900">
                         {(l.qty * l.unitPrice - l.discount).toFixed(2)}
@@ -622,14 +721,25 @@ function PosInner() {
                 Send SMS to Customer
                 <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold leading-none cursor-help" title="Sends order-placed SMS to customer">i</span>
               </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600 font-medium">Delivery Date</span>
-                <input
-                  type="date"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400"
-                />
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600 font-medium w-24">Delivery Date</span>
+                  <input
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600 font-medium w-24">Delivery Time</span>
+                  <input
+                    type="time"
+                    value={deliveryTime}
+                    onChange={(e) => setDeliveryTime(e.target.value)}
+                    className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400"
+                  />
+                </div>
               </div>
             </div>
             <div className="flex items-center justify-between gap-2 sm:justify-start">
@@ -638,13 +748,67 @@ function PosInner() {
                 onChange={(e) => setOtherCharges(Number(e.target.value))}
                 className="w-24 border border-slate-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
             </div>
+            <div className="flex items-center justify-between gap-2 sm:justify-start">
+              <span className="text-sm text-slate-600 font-medium">POS Discount</span>
+              <div className="flex items-center gap-1">
+                <select
+                  value={posDiscountType}
+                  onChange={(e) => setPosDiscountType(e.target.value as "percentage" | "fixed")}
+                  className="border border-slate-200 rounded px-1 py-1 text-sm focus:outline-none focus:border-blue-400 bg-white">
+                  <option value="fixed">Fixed</option>
+                  <option value="percentage">%</option>
+                </select>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={posDiscountStr !== undefined ? posDiscountStr : (posDiscount === 0 ? "" : String(posDiscount))}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
+                      const num = raw === "" || raw === "." ? 0 : parseFloat(raw);
+                      setPosDiscountStr(raw);
+                      setPosDiscount(isNaN(num) ? 0 : num);
+                    }
+                  }}
+                  onBlur={() => {
+                    const num = parseFloat(posDiscountStr ?? "0") || 0;
+                    setPosDiscountStr(undefined);
+                    setPosDiscount(num);
+                  }}
+                  className="w-24 border border-slate-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400"
+                />
+                {posDiscountType === "percentage" && posDiscount > 0 && (
+                  <span className="text-xs text-slate-500">= {posDiscountAmount.toFixed(2)}</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Totals bar */}
           <div className="border-t border-slate-200 bg-slate-100 px-4 py-2 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 sm:divide-x sm:divide-slate-300">
             <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Quantity:</div><div className="text-xl font-bold text-slate-800">{totalQty}</div></div>
             <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Total Amount:</div><div className="text-xl font-bold text-slate-800">{totalAmount.toFixed(2)}</div></div>
-            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Total Discount:</div><div className="text-xl font-bold text-slate-800">{totalDiscount.toFixed(2)}</div></div>
+            <div className="px-2">
+              <div className="text-xs font-bold text-slate-600 mb-0.5">Total Discount:</div>
+              <div className="text-xl font-bold text-slate-800">{(totalDiscount + posDiscountAmount).toFixed(2)}</div>
+              {(totalDiscount > 0 || posDiscountAmount > 0) && (
+                <div className="mt-0.5 space-y-0.5 text-left">
+                  {totalDiscount > 0 && (
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>Item disc.</span>
+                      <span>{totalDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {posDiscountAmount > 0 && (
+                    <div className="flex justify-between text-xs text-amber-600 font-medium">
+                      <span>{customer.pk ? "Cust. disc." : "POS disc."}{posDiscountType === "percentage" ? ` (${posDiscount}%)` : ""}</span>
+                      <span>{posDiscountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Grand Total:</div><div className="text-xl font-bold text-blue-700">{grandTotal.toFixed(2)}</div></div>
           </div>
 
@@ -750,6 +914,76 @@ function PosInner() {
           </div>
         </div>
       </div>
+
+      {/* New Customer Modal */}
+      {showNewCustModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowNewCustModal(false); }}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-lg text-slate-800">Add New Customer</h2>
+              <button type="button" onClick={() => setShowNewCustModal(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveNewCustomer} className="p-5 space-y-4 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Customer Name<span className="text-red-500">*</span></label>
+                  <input required value={newCustForm.name} onChange={(e) => setNewCustForm(p => ({ ...p, name: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Mobile Number</label>
+                  <input value={newCustForm.mobile} onChange={(e) => setNewCustForm(p => ({ ...p, mobile: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                  <input type="email" value={newCustForm.email} onChange={(e) => setNewCustForm(p => ({ ...p, email: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Whatsapp Number</label>
+                  <input value={newCustForm.phone} onChange={(e) => setNewCustForm(p => ({ ...p, phone: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
+                  <select value={newCustForm.country} onChange={(e) => setNewCustForm(p => ({ ...p, country: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 bg-white">
+                    {COUNTRIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                  <input value={newCustForm.city} onChange={(e) => setNewCustForm(p => ({ ...p, city: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Address</label>
+                  <textarea value={newCustForm.address} onChange={(e) => setNewCustForm(p => ({ ...p, address: e.target.value }))}
+                    rows={2} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 resize-y" />
+                </div>
+              </div>
+              {newCustMsg && (
+                <div className={`px-3 py-2 rounded text-sm ${newCustMsg.type === "ok" ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"}`}>
+                  {newCustMsg.text}
+                </div>
+              )}
+              <div className="flex gap-3 pt-1">
+                <button type="submit" disabled={savingNewCust}
+                  className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded text-sm disabled:opacity-60 transition-colors">
+                  {savingNewCust ? "Saving..." : "Save & Select"}
+                </button>
+                <button type="button" onClick={() => setShowNewCustModal(false)}
+                  className="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded text-sm transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Payment modal */}
       {showPayModal && (

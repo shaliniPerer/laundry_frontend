@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
 
 type Category = {
@@ -165,17 +166,10 @@ export default function CategoryListPage() {
                   <td className="px-3 py-2 font-medium text-slate-800">{c.name}</td>
                   <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "-"}</td>
                   <td className="px-3 py-2">
-                    <div ref={openActionId === c.pk ? actionMenuRef : null} className="relative inline-block">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === c.pk ? null : c.pk); }} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors">
-                        Action <ChevronDown className="w-3 h-3" />
-                      </button>
-                      {openActionId === c.pk && (
-                        <div className="absolute right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-20 min-w-36 py-1">
-                          <button type="button" onClick={() => openEdit(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
-                          <button type="button" onClick={() => deleteCategory(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
-                        </div>
-                      )}
-                    </div>
+                    <DropdownMenu>
+                      <button type="button" onClick={() => openEdit(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
+                      <button type="button" onClick={() => deleteCategory(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))}

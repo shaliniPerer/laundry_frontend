@@ -144,7 +144,7 @@ export default function NewItemPage() {
             </div>
 
             <div>
-              <label className={labelCls}>Service</label>
+              <label className={labelCls}>Laundry Type</label>
               <div className="flex gap-1.5">
                 <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className={`${inputCls} flex-1`}>
                   <option value="">— Select —</option>
@@ -154,7 +154,7 @@ export default function NewItemPage() {
               </div>
             </div>
             <div>
-              <label className={labelCls}>Laundry Type<span className="text-red-500">*</span></label>
+              <label className={labelCls}>Service<span className="text-red-500">*</span></label>
               <div className="flex gap-1.5">
                 <select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`${inputCls} flex-1`}>
                   <option value="">— Select —</option>
@@ -180,7 +180,7 @@ export default function NewItemPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelCls}>Price<span className="text-red-500">*</span></label>
-                <input required type="number" min={0} step={0.01} placeholder="Price of Item without Tax" value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} className={inputCls} />
+                <input required type="number" min={0} step={0.01} placeholder="Price of Item " value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} className={inputCls} />
               </div>
               
             </div>

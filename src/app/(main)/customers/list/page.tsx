@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Eye, History, Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
 
 type Customer = {
@@ -512,61 +513,39 @@ export default function CustomerListPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <div
-                          ref={openActionId === customer.pk ? actionMenuRef : null}
-                          className="relative inline-block"
-                        >
+                        <DropdownMenu>
+                          <Link
+                            href={`/sales/list?customer=${encodeURIComponent(customer.name)}`}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <History className="w-3.5 h-3.5 text-blue-600" />
+                            History
+                          </Link>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenActionId(openActionId === customer.pk ? null : customer.pk)
-                            }}
-                            className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+                            onClick={() => setViewCustomer(customer)}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
                           >
-                            Action <ChevronDown className="w-3 h-3" />
+                            <Eye className="w-3.5 h-3.5 text-slate-600" />
+                            View Details
                           </button>
-
-                          {openActionId === customer.pk && (
-                            <div className="absolute right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg z-20 min-w-44 py-1">
-                              <Link
-                                href={`/sales/list?customer=${encodeURIComponent(customer.name)}`}
-                                onClick={() => setOpenActionId(null)}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <History className="w-3.5 h-3.5 text-blue-600" />
-                                History
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionId(null);
-                                  setViewCustomer(customer);
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Eye className="w-3.5 h-3.5 text-slate-600" />
-                                View Details
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => openEdit(customer)}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-teal-600" />
-                                Edit Details
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => deleteCustomer(customer)}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(customer)}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-teal-600" />
+                            Edit Details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomer(customer)}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );
@@ -766,7 +745,7 @@ export default function CustomerListPage() {
               <div><b>City:</b> {viewCustomer.city || "-"}</div>
               <div><b>Previous Due:</b> {Number(viewCustomer.previousDue || 0).toFixed(2)}</div>
               <div><b>Discount Type:</b> {formatDiscountType(viewCustomer)}</div>
-              <div><b>Discount Amount:</b> {formatDiscountAmount(viewCustomer)}</div>
+              <div><b>Discount Amount:</b> {formatDiscountAmount(viewCustomer)}{viewCustomer.discountType === "percentage" && viewCustomer.discount != null ? "%" : ""}</div>
               <div className="sm:col-span-2"><b>Address:</b> {viewCustomer.address || "-"}</div>
               <div className="sm:col-span-2">
                 <b>Created At:</b>{" "}

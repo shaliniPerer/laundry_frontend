@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
 import {
   ShoppingBag,
@@ -396,7 +397,7 @@ export default function SalesListPage() {
           </div>
           <button
             type="button"
-            onClick={() => router.push("/sales/new")}
+            onClick={() => router.push("/sales/pos")}
             className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" /> New Sales
@@ -521,7 +522,12 @@ export default function SalesListPage() {
                       <td className="px-3 py-2">
                         <StatusCell sale={s} onStatusChange={handleStatusChange} />
                       </td>
-                      <td className="px-3 py-2">{s.customerName}</td>
+                      <td className="px-3 py-2">
+                        {s.customerName}
+                        {s.customerMobile && (
+                          <span className="text-slate-500"> - {s.customerMobile}</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right">{Number(s.total ?? 0).toFixed(2)}</td>
                       <td className="px-3 py-2 text-right">{Number(s.paidAmount ?? 0).toFixed(2)}</td>
                       <td className="px-3 py-2 text-right">{due.toFixed(2)}</td>
@@ -537,33 +543,24 @@ export default function SalesListPage() {
                         />
                       </td>
                       <td className="px-3 py-2">{s.createdBy}</td>
-                      <td className="px-3 py-2 relative no-print">
-                        <button
-                          type="button"
-                          onClick={() => setOpenMenu(isOpen ? null : id)}
-                          className="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-1.5 rounded transition-colors"
-                        >
-                          Action <ChevronDown className="w-3 h-3" />
-                        </button>
-                        {isOpen && (
-                          <div className="absolute right-2 top-9 z-50 bg-white border border-slate-200 rounded shadow-xl min-w-44 py-1">
+                      <td className="px-3 py-2 no-print">
+                        <DropdownMenu buttonClassName="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-1.5 rounded transition-colors">
                             <ActionItem icon={<Eye className="w-3.5 h-3.5 text-blue-500" />} label="Invoice"
-                              onClick={() => { setOpenMenu(null); router.push(`/sales/${id}/view`); }} />
+                              onClick={() => { router.push(`/sales/${id}/view`); }} />
                             <ActionItem icon={<Pencil className="w-3.5 h-3.5 text-green-600" />} label="Edit"
-                              onClick={() => { setOpenMenu(null); router.push(`/sales/pos?id=${id}`); }} />
+                              onClick={() => { router.push(`/sales/pos?id=${id}`); }} />
                             <ActionItem icon={<CreditCard className="w-3.5 h-3.5 text-purple-500" />} label="View Payments"
-                              onClick={() => { setOpenMenu(null); router.push(`/sales/${id}/payments`); }} />
+                              onClick={() => { router.push(`/sales/${id}/payments`); }} />
                             <hr className="my-1 border-slate-100" />
                             <ActionItem icon={<ReceiptText className="w-3.5 h-3.5 text-cyan-600" />} label="POS Invoice"
-                              onClick={() => { setOpenMenu(null); router.push(`/sales/${id}/view?print=1`); }} />
+                              onClick={() => { router.push(`/sales/${id}/view?print=1`); }} />
                             <hr className="my-1 border-slate-100" />
                             <ActionItem icon={<RotateCcw className="w-3.5 h-3.5 text-orange-500" />} label="Sales Return"
-                              onClick={() => { setOpenMenu(null); router.push(`/sales/returns/list?saleId=${id}&saleCode=${encodeURIComponent(s.saleNumber ?? "")}`); }} />
+                              onClick={() => { router.push(`/sales/returns/list?saleId=${id}&saleCode=${encodeURIComponent(s.saleNumber ?? "")}`); }} />
                             <hr className="my-1 border-slate-100" />
                             <ActionItem icon={<Trash2 className="w-3.5 h-3.5 text-red-600" />} label={deleting === id ? "Deleting…" : "Delete"}
                               onClick={() => handleDelete(s)} danger />
-                          </div>
-                        )}
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );
