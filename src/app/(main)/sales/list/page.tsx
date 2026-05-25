@@ -474,7 +474,6 @@ export default function SalesListPage() {
                 {paginated.map((s, i) => {
                   const id = saleId(s);
                   const due = Number(s.total ?? 0) - Number(s.paidAmount ?? 0);
-                  const isOpen = openMenu === id;
                   return (
                     <tr key={s.pk} className={`border-t border-slate-100 hover:bg-slate-50 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
                       <td className="px-3 py-2 no-print"><input type="checkbox" className="rounded" /></td>

@@ -6,8 +6,8 @@ import { api } from "@/lib/api";
 import {
   Shield, LayoutDashboard, Users, ShoppingCart, UserCheck, Package,
   Tag, Bookmark, Receipt, BarChart2, MessageSquare,
-  Settings, Building2, ChevronDown, ChevronUp, Search, Save, Plus,
-  Check, Loader2, Trash2, X, LucideIcon, Repeat2,
+  Settings, ChevronDown, ChevronUp, Search, Save, Plus,
+  Check, Loader2, Trash2, X, LucideIcon,
 } from "lucide-react";
 
 // ─── Permission definitions ────────────────────────────────────────────────
@@ -204,13 +204,13 @@ export default function RolesPermissionsPage() {
   }, [selectedRoleId, roles]);
 
   function toggle(key: string) {
-    setPermissions((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    setPermissions((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   }
 
   function toggleModule(modId: string, actions: string[]) {
     const keys = actions.map((a) => permKey(modId, a));
     const allOn = keys.every((k) => permissions.has(k));
-    setPermissions((prev) => { const n = new Set(prev); allOn ? keys.forEach((k) => n.delete(k)) : keys.forEach((k) => n.add(k)); return n; });
+    setPermissions((prev) => { const n = new Set(prev); if (allOn) keys.forEach((k) => n.delete(k)); else keys.forEach((k) => n.add(k)); return n; });
   }
 
   function toggleAll() {
@@ -220,7 +220,7 @@ export default function RolesPermissionsPage() {
   }
 
   function toggleCollapsed(id: string) {
-    setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setCollapsed((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
 
   async function save() {
@@ -561,7 +561,7 @@ export default function RolesPermissionsPage() {
               <Shield className="w-8 h-8 text-amber-400" />
             </div>
             <h3 className="text-lg font-bold text-slate-700 mb-1">No roles yet</h3>
-            <p className="text-sm text-slate-500">Create your first role using the "New Role" button above.</p>
+            <p className="text-sm text-slate-500">Create your first role using the &quot;New Role&quot; button above.</p>
           </div>
         )}
       </div>

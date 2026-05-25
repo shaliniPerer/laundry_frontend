@@ -71,19 +71,6 @@ function normalizeCustomer(customer: Customer): Customer {
   };
 }
 
-function getCustomerDiscountAmount(customer: Customer, unitPrice: number, qty = 1) {
-  const discount = Number(customer.discount || 0);
-  const lineAmount = unitPrice * qty;
-  if (!customer.pk || discount <= 0) return 0;
-  if (customer.discountType === "fixed") return Math.min(discount * qty, lineAmount);
-  if (customer.discountType === "percentage") return Math.min((lineAmount * discount) / 100, lineAmount);
-  return 0;
-}
-
-function hasCustomerDiscount(customer: Customer) {
-  return Boolean(customer.pk && customer.discountType && Number(customer.discount || 0) > 0);
-}
-
 function canUseDecimalQty(unit?: string) {
   return unit?.trim().toLowerCase() === "kg";
 }
@@ -263,13 +250,6 @@ function PosInner() {
 
   const autoPay = searchParams.get("pay") === "1";
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
-  const customerDiscountLabel = useMemo(() => {
-    if (!customer.pk || !customer.discountType) return "No customer discount";
-    if (customer.discountType === "percentage") {
-      return `Customer discount: ${Number(customer.discount || 0).toFixed(2)}%`;
-    }
-    return `Customer discount: ${Number(customer.discount || 0).toFixed(2)} fixed`;
-  }, [customer]);
 
   useEffect(() => {
     if (autoPay && lines.length > 0 && !hasAutoOpened) {

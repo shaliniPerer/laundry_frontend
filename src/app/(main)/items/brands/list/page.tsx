@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
@@ -20,7 +20,7 @@ export default function BrandListPage() {
   const [search, setSearch] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [_openActionId, setOpenActionId] = useState<string | null>(null);
   const [editBrand, setEditBrand] = useState<Brand | null>(null);
   const [editForm, setEditForm] = useState<Partial<Brand>>({});
   const [editSaving, setEditSaving] = useState(false);

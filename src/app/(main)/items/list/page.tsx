@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
@@ -32,7 +32,7 @@ export default function ItemListPage() {
   const [filterCategory, setFilterCategory] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [_openActionId, setOpenActionId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);

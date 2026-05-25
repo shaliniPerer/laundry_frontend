@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Eye, History, Pencil, Trash2, X } from "lucide-react";
+import { Eye, History, Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
@@ -61,7 +61,7 @@ export default function CustomerListPage() {
   const [search, setSearch] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [_openActionId, setOpenActionId] = useState<string | null>(null);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
   const [editMsg, setEditMsg] = useState<string | null>(null);

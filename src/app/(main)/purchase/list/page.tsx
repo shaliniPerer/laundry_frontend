@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ShoppingBag, Plus, RefreshCw, Hourglass, Trash2, Pencil } from "lucide-react";
+import { ShoppingBag, Plus, RefreshCw, Hourglass, Trash2, Pencil } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
@@ -27,7 +27,7 @@ export default function PurchaseListPage() {
   const [search, setSearch] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [_openActionId, setOpenActionId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
