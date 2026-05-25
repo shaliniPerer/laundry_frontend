@@ -470,7 +470,7 @@ export default function SmsPage() {
                     <div className="text-slate-700 leading-snug">{r.message}</div>
                     {r.error && <div className="text-xs text-red-500 mt-1">{r.error}</div>}
                     <div className="flex items-center gap-2 mt-1">
-                      {r.createdAt && <span className="text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</span>}
+                      {r.createdAt && <span className="text-xs text-slate-400">{(() => { const d = new Date(r.createdAt); const dd = String(d.getDate()).padStart(2,"0"); const mm = String(d.getMonth()+1).padStart(2,"0"); const hh = String(d.getHours()).padStart(2,"0"); const min = String(d.getMinutes()).padStart(2,"0"); return `${dd}-${mm}-${d.getFullYear()} ${hh}:${min}`; })()}</span>}
                       {r.provider  && <span className="text-xs text-slate-400">via {r.provider}</span>}
                     </div>
                   </li>

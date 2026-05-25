@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
+import { DateInput } from "@/components/DateInput";
 
 type Sale = {
   pk: string;
@@ -99,11 +100,11 @@ export default function NewSalesReturnPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-slate-500 mb-1 block">Return Date <span className="text-red-500">*</span></label>
-            <input
-              type="date"
+            <DateInput
               value={returnDate}
-              onChange={(e) => setReturnDate(e.target.value)}
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400"
+              onChange={setReturnDate}
+              required
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400 bg-white"
             />
           </div>
           <div>

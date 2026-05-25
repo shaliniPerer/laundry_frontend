@@ -68,9 +68,16 @@ export default function SalesReturnListPage() {
 
   function formatDate(value?: string) {
     if (!value) return "-";
+    // Try YYYY-MM-DD string split first (avoids timezone issues)
+    const parts = value.slice(0, 10).split("-");
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString();
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    return `${dd}-${mm}-${date.getFullYear()}`;
   }
 
   return (

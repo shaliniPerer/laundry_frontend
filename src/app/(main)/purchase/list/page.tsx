@@ -246,7 +246,7 @@ export default function PurchaseListPage() {
                       <td className="px-3 py-2 text-center">
                         <input type="checkbox" className="rounded" />
                       </td>
-                      <td className="px-3 py-2 text-slate-600">{p.purchaseDate || "—"}</td>
+                      <td className="px-3 py-2 text-slate-600">{p.purchaseDate ? (() => { const pts = p.purchaseDate!.split("-"); return pts.length === 3 && pts[0].length === 4 ? `${pts[2]}-${pts[1]}-${pts[0]}` : p.purchaseDate; })() : "—"}</td>
                       <td className="px-3 py-2 font-mono text-xs text-slate-700">{p.purchaseCode || "—"}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={`text-white text-xs font-semibold px-2.5 py-0.5 rounded ${p.status === "Received" ? "bg-green-500" : p.status === "Ordered" ? "bg-blue-500" : "bg-slate-400"}`}>

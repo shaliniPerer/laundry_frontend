@@ -750,13 +750,13 @@ export default function CustomerListPage() {
               <div className="sm:col-span-2">
                 <b>Created At:</b>{" "}
                 {viewCustomer.createdAt
-                  ? new Date(viewCustomer.createdAt).toLocaleString()
+                  ? (() => { const d = new Date(viewCustomer.createdAt); const dd = String(d.getDate()).padStart(2,"0"); const mm = String(d.getMonth()+1).padStart(2,"0"); const hh = String(d.getHours()).padStart(2,"0"); const min = String(d.getMinutes()).padStart(2,"0"); return `${dd}-${mm}-${d.getFullYear()} ${hh}:${min}`; })()
                   : "-"}
               </div>
               <div className="sm:col-span-2">
                 <b>Updated At:</b>{" "}
                 {viewCustomer.updatedAt
-                  ? new Date(viewCustomer.updatedAt).toLocaleString()
+                  ? (() => { const d = new Date(viewCustomer.updatedAt); const dd = String(d.getDate()).padStart(2,"0"); const mm = String(d.getMonth()+1).padStart(2,"0"); const hh = String(d.getHours()).padStart(2,"0"); const min = String(d.getMinutes()).padStart(2,"0"); return `${dd}-${mm}-${d.getFullYear()} ${hh}:${min}`; })()
                   : "-"}
               </div>
             </div>

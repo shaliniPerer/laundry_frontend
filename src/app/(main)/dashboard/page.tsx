@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
+import { DateInput } from "@/components/DateInput";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -412,17 +413,15 @@ export default function DashboardPage() {
         </div>
         {value === "custom" && (
           <>
-            <input
-              type="date"
+            <DateInput
               value={from}
-              onChange={(e) => onFromChange(e.target.value)}
-              className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400"
+              onChange={onFromChange}
+              className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
             />
-            <input
-              type="date"
+            <DateInput
               value={to}
-              onChange={(e) => onToChange(e.target.value)}
-              className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400"
+              onChange={onToChange}
+              className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
             />
           </>
         )}
@@ -512,7 +511,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
                     <Calendar className="w-3.5 h-3.5" />
-                    {s.deliveryDate}
+                    {(() => { const p = (s.deliveryDate || "").split("-"); return p.length === 3 && p[0].length === 4 ? `${p[2]}-${p[1]}-${p[0]}` : s.deliveryDate; })()}
                   </div>
                 </div>
               ))}

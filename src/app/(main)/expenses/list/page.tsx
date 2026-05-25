@@ -6,6 +6,7 @@ import { ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
+import { DateInput } from "@/components/DateInput";
 
 type Expense = {
   pk: string;
@@ -241,7 +242,7 @@ export default function ExpenseListPage() {
             <form onSubmit={saveEdit} className="p-5 grid grid-cols-2 gap-3">
               <div className="col-span-2 sm:col-span-1">
                 <label className="text-xs text-slate-500 mb-1 block">Date*</label>
-                <input required type="date" value={editForm.date || ""} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                <DateInput required value={editForm.date || ""} onChange={(v) => setEditForm((f) => ({ ...f, date: v }))} className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 bg-white" />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="text-xs text-slate-500 mb-1 block">Reference No.</label>

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { AppHeader } from "@/components/AppHeader";
+import { DateInput } from "@/components/DateInput";
 import {
   Camera, ChevronDown, CreditCard, RotateCcw, ShoppingCart,
   Trash2, User, X, Banknote, Building2, Plus, Hourglass,
@@ -252,7 +253,7 @@ function PosInner() {
 
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
   const totalAmount = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const totalDiscount = lines.reduce((s, l) => s + l.discount, 0);
+  const totalDiscount = lines.reduce((s, l) => s + l.discount * l.qty, 0);
   const posDiscountAmount = posDiscountType === "percentage"
     ? Math.max(0, totalAmount - totalDiscount) * posDiscount / 100
     : posDiscount;
@@ -434,27 +435,11 @@ function PosInner() {
       qty: l.qty,
       unitPrice: l.unitPrice,
       discount: l.discount,
-      lineTotal: l.qty * l.unitPrice - l.discount,
+      lineTotal: l.qty * (l.unitPrice - l.discount),
     }));
 
-    if (editId) {
-      // Update existing sale
-      const upd = await api(`/api/sales/${editId}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          customerId: customer.pk ? customer.pk.replace("CUSTOMER#", "") : undefined,
-          customerName: customer.name || undefined,
-          customerMobile: customer.mobile ?? customer.phone,
-          deliveryDate,
-          deliveryTime: deliveryTime || undefined,
-          otherCharges,
-          discountOnAll: posDiscountAmount || undefined,
-          discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
-          lines: linePayload,
-        }),
-      });
-      if (!upd.ok) { setMsg({ type: "err", text: upd.error ?? "Failed to update sale." }); setSubmitting(false); return; }
-    } else {
+    let savedId: string | null = editId ?? null;
+    if (!editId) {
       const customerMobile = customer.mobile ?? customer.phone;
       const res = await api<{ id: string }>("/api/sales/pos", {
         method: "POST",
@@ -473,16 +458,31 @@ function PosInner() {
         }),
       });
       if (!res.ok || !res.data?.id) { setMsg({ type: "err", text: res.error ?? "Could not create sale." }); setSubmitting(false); return; }
-
-      // Brief confirmation if SMS was requested
+      savedId = res.data.id;
       if (sendSms && customerMobile) {
         setMsg({ type: "ok", text: "Sale saved. SMS sent to customer." });
         await new Promise(r => setTimeout(r, 1500));
       }
+    } else {
+      const upd = await api(`/api/sales/${editId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          customerId: customer.pk ? customer.pk.replace("CUSTOMER#", "") : undefined,
+          customerName: customer.name || undefined,
+          customerMobile: customer.mobile ?? customer.phone,
+          deliveryDate,
+          deliveryTime: deliveryTime || undefined,
+          otherCharges,
+          discountOnAll: posDiscountAmount || undefined,
+          discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
+          lines: linePayload,
+        }),
+      });
+      if (!upd.ok) { setMsg({ type: "err", text: upd.error ?? "Failed to update sale." }); setSubmitting(false); return; }
     }
 
     setSubmitting(false);
-    router.push("/sales/list");
+    router.push(`/sales/${savedId}/view`);
   }
 
   async function handlePayAll() {
@@ -505,7 +505,7 @@ function PosInner() {
       qty: l.qty,
       unitPrice: l.unitPrice,
       discount: l.discount,
-      lineTotal: l.qty * l.unitPrice - l.discount,
+      lineTotal: l.qty * (l.unitPrice - l.discount),
     }));
 
     let saleId: string | null = null;
@@ -652,7 +652,7 @@ function PosInner() {
                   <th className="px-3 py-2 text-left font-semibold">Item Name</th>
                   <th className="px-2 py-2 text-center font-semibold w-24">Qty</th>
                   <th className="px-2 py-2 text-center font-semibold w-20">Price</th>
-                  <th className="px-2 py-2 text-center font-semibold w-20">Discount</th>
+                  <th className="px-2 py-2 text-center font-semibold w-20">D/C per Kg/Pc</th>
                   <th className="px-2 py-2 text-right font-semibold w-24">Subtotal</th>
                   <th className="px-1 py-2 w-7 bg-blue-700" />
                 </tr>
@@ -699,7 +699,7 @@ function PosInner() {
                         />
                       </td>
                       <td className="px-2 py-1.5 text-right font-semibold text-slate-900">
-                        {(l.qty * l.unitPrice - l.discount).toFixed(2)}
+                        {(l.qty * (l.unitPrice - l.discount)).toFixed(2)}
                       </td>
                       <td className="px-1 py-1.5 text-center">
                         <button type="button" onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 p-0.5">
@@ -724,11 +724,10 @@ function PosInner() {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-600 font-medium w-24">Delivery Date</span>
-                  <input
-                    type="date"
+                  <DateInput
                     value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400"
+                    onChange={setDeliveryDate}
+                    className="border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400 bg-white"
                   />
                 </div>
                 <div className="flex items-center gap-2">

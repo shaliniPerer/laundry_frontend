@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
+import { DateInput } from "@/components/DateInput";
 import { api } from "@/lib/api";
 import {
   ShoppingBag,
@@ -100,6 +101,21 @@ export default function SalesListPage() {
   const [multiPayments, setMultiPayments] = useState<MultiPayment[]>([]);
   const [submittingPay, setSubmittingPay] = useState(false);
   const [payMsg, setPayMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  // View Payments modal
+  const [viewPaySale, setViewPaySale] = useState<Sale | null>(null);
+  const [viewPayments, setViewPayments] = useState<{ id: string; date: string; paymentType: string; note?: string; amount: number }[]>([]);
+  const [viewPayLoading, setViewPayLoading] = useState(false);
+
+  async function openViewPaymentsModal(sale: Sale) {
+    setViewPaySale(sale);
+    setViewPayments([]);
+    setViewPayLoading(true);
+    const id = saleId(sale);
+    const res = await api<{ payments: { id: string; date: string; paymentType: string; note?: string; amount: number }[] }>(`/api/sales/${id}/payments`);
+    if (res.ok && res.data?.payments) setViewPayments(res.data.payments);
+    setViewPayLoading(false);
+  }
 
   const menuRef = useRef<HTMLDivElement>(null);
   const customerRef = useRef<HTMLDivElement>(null);
@@ -363,9 +379,9 @@ export default function SalesListPage() {
                     <button
                       key={c.pk}
                       type="button"
-                      onClick={() => { setCustomerFilter(c.name); setCustomerSearch(c.name); setShowCustomerDrop(false); setPage(1); }}
+                      onClick={() => { setCustomerFilter(c.name); setCustomerSearch(`${c.name}${c.mobile ? ` - ${c.mobile}` : ""}`); setShowCustomerDrop(false); setPage(1); }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
-                    >{c.name} {c.mobile && <span className="text-slate-400 text-xs">{c.mobile}</span>}</button>
+                    >{c.name}{c.mobile && <span className="text-slate-400"> - {c.mobile}</span>}</button>
                   ))}
                 </div>
               )}
@@ -385,14 +401,14 @@ export default function SalesListPage() {
             {/* From Date */}
             <div>
               <label className="text-xs text-slate-500 mb-1 block">From Date</label>
-              <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
-                className="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              <DateInput value={fromDate} onChange={(v) => { setFromDate(v); setPage(1); }}
+                className="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 w-full bg-white" />
             </div>
             {/* To Date */}
             <div>
               <label className="text-xs text-slate-500 mb-1 block">To Date</label>
-              <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(1); }}
-                className="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+              <DateInput value={toDate} onChange={(v) => { setToDate(v); setPage(1); }}
+                className="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 w-full bg-white" />
             </div>
           </div>
           <button
@@ -443,12 +459,15 @@ export default function SalesListPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-700 text-white text-xs">
-                  <th className="px-3 py-2.5 text-left w-8">
+                  <th className="px-3 py-2.5 text-left w-8 no-print">
                     <input type="checkbox" className="rounded" />
                   </th>
-                  {["Sales Date", "Deliver Date", "Send SMS", "Sales Code", "Sales Status", "Customer Name", "Total", "Paid Payment", "Due", "Payment Status", "Created by", "Action"].map((h) => (
+                  {(["Sales Date", "Deliver Date", "Sales Code", "Customer Name", "Total", "Paid", "Due", "Payment Status", "Created By"] as string[]).map((h) => (
                     <th key={h} className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
                   ))}
+                  <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap no-print">Sales Status</th>
+                  <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap no-print">Send SMS</th>
+                  <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap no-print">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -458,11 +477,39 @@ export default function SalesListPage() {
                   const isOpen = openMenu === id;
                   return (
                     <tr key={s.pk} className={`border-t border-slate-100 hover:bg-slate-50 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
-                      <td className="px-3 py-2"><input type="checkbox" className="rounded" /></td>
+                      <td className="px-3 py-2 no-print"><input type="checkbox" className="rounded" /></td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(saleOccurredDate(s))}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(s.deliveryDate)}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/sales/${id}/view`)}
+                          className="text-blue-700 hover:underline"
+                        >
+                          {s.saleNumber}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">{s.customerName}</td>
+                      <td className="px-3 py-2 text-right">{Number(s.total ?? 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{Number(s.paidAmount ?? 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{due.toFixed(2)}</td>
+                      <td className="px-3 py-2">
+                        <PaymentBadge 
+                          status={s.paymentStatus} 
+                          onClick={() => {
+                            const pStatus = (s.paymentStatus ?? "").toLowerCase();
+                            if (pStatus === "unpaid" || pStatus === "partial") {
+                              openPaymentModal(s);
+                            }
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-2">{s.createdBy}</td>
+                      <td className="px-3 py-2 no-print">
+                        <StatusCell sale={s} onStatusChange={handleStatusChange} />
+                      </td>
                       {/* Send SMS tick column */}
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-2 text-center no-print">
                         {!s.customerMobile ? (
                           <span className="text-slate-300 text-xs">—</span>
                         ) : (() => {
@@ -510,39 +557,6 @@ export default function SalesListPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        <button
-                          type="button"
-                          onClick={() => router.push(`/sales/${id}/view`)}
-                          className="text-blue-700 hover:underline"
-                        >
-                          {s.saleNumber}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusCell sale={s} onStatusChange={handleStatusChange} />
-                      </td>
-                      <td className="px-3 py-2">
-                        {s.customerName}
-                        {s.customerMobile && (
-                          <span className="text-slate-500"> - {s.customerMobile}</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right">{Number(s.total ?? 0).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right">{Number(s.paidAmount ?? 0).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right">{due.toFixed(2)}</td>
-                      <td className="px-3 py-2">
-                        <PaymentBadge 
-                          status={s.paymentStatus} 
-                          onClick={() => {
-                            const pStatus = (s.paymentStatus ?? "").toLowerCase();
-                            if (pStatus === "unpaid" || pStatus === "partial") {
-                              openPaymentModal(s);
-                            }
-                          }}
-                        />
-                      </td>
-                      <td className="px-3 py-2">{s.createdBy}</td>
                       <td className="px-3 py-2 no-print">
                         <DropdownMenu buttonClassName="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-1.5 rounded transition-colors">
                             <ActionItem icon={<Eye className="w-3.5 h-3.5 text-blue-500" />} label="Invoice"
@@ -550,7 +564,7 @@ export default function SalesListPage() {
                             <ActionItem icon={<Pencil className="w-3.5 h-3.5 text-green-600" />} label="Edit"
                               onClick={() => { router.push(`/sales/pos?id=${id}`); }} />
                             <ActionItem icon={<CreditCard className="w-3.5 h-3.5 text-purple-500" />} label="View Payments"
-                              onClick={() => { router.push(`/sales/${id}/payments`); }} />
+                              onClick={() => { setOpenMenu(null); openViewPaymentsModal(s); }} />
                             <hr className="my-1 border-slate-100" />
                             <ActionItem icon={<ReceiptText className="w-3.5 h-3.5 text-cyan-600" />} label="POS Invoice"
                               onClick={() => { router.push(`/sales/${id}/view?print=1`); }} />
@@ -588,6 +602,90 @@ export default function SalesListPage() {
           </div>
         )}
       </div>
+
+      {/* VIEW PAYMENTS MODAL */}
+      {viewPaySale && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setViewPaySale(null); }}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="font-bold text-lg text-slate-800">Payments — Invoice {viewPaySale.saleNumber}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{viewPaySale.customerName}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right text-sm">
+                  <div className="text-slate-500">Grand Total: <span className="font-semibold text-slate-800">LKR {Number(viewPaySale.total ?? 0).toFixed(2)}</span></div>
+                  <div className="text-slate-500">Paid: <span className="font-semibold text-green-600">LKR {Number(viewPaySale.paidAmount ?? 0).toFixed(2)}</span></div>
+                  <div className="text-slate-500">Due: <span className={`font-semibold ${(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0 ? "text-red-600" : "text-green-600"}`}>LKR {(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)).toFixed(2)}</span></div>
+                </div>
+                <button type="button" onClick={() => setViewPaySale(null)} className="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">×</button>
+              </div>
+            </div>
+
+            {/* Payment History */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {viewPayLoading ? (
+                <p className="text-center text-slate-400 py-8 text-sm">Loading payments…</p>
+              ) : viewPayments.length === 0 ? (
+                <p className="text-center text-slate-400 py-8 text-sm">No payments recorded yet.</p>
+              ) : (
+                <table className="w-full text-sm border border-slate-200 rounded overflow-hidden">
+                  <thead className="bg-slate-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">#</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Date</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Type</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Note</th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">Amount (LKR)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewPayments.map((p, i) => (
+                      <tr key={p.id} className={`border-t border-slate-100 ${i % 2 === 1 ? "bg-slate-50/60" : ""}`}>
+                        <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{fmtDate(p.date)}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                            p.paymentType === "Cash" ? "bg-green-100 text-green-700" :
+                            p.paymentType === "Card" ? "bg-blue-100 text-blue-700" :
+                            "bg-purple-100 text-purple-700"
+                          }`}>{p.paymentType}</span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-500 text-xs">{p.note ?? "—"}</td>
+                        <td className="px-3 py-2 text-right font-semibold">{Number(p.amount).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-slate-50 border-t border-slate-200">
+                    <tr>
+                      <td colSpan={4} className="px-3 py-2 text-sm font-semibold text-slate-700 text-right">Total Paid:</td>
+                      <td className="px-3 py-2 text-right font-bold text-green-600">{viewPayments.reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 flex gap-3 shrink-0">
+              {(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0.005 && (
+                <button
+                  type="button"
+                  onClick={() => { setViewPaySale(null); openPaymentModal(viewPaySale); }}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Add Payment
+                </button>
+              )}
+              <button type="button" onClick={() => setViewPaySale(null)}
+                className="ml-auto px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PAYMENT MODAL */}
       {paySale && (

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronDown } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DateInput } from "@/components/DateInput";
 
 export type ReportColumn = { key: string; label: string; right?: boolean };
 
@@ -89,11 +90,11 @@ export function StandardReportLayout({
           <span className="px-2.5 py-1.5 bg-slate-50 border-r border-slate-300">
             <Calendar className="w-4 h-4 text-slate-400" />
           </span>
-          <input
-            type="date"
+          <DateInput
             value={form[f.key]}
-            onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-            className="flex-1 px-2 py-1.5 text-sm outline-none bg-transparent"
+            onChange={(v) => setForm((p) => ({ ...p, [f.key]: v }))}
+            wrapperClassName="flex-1"
+            className="w-full px-2 py-1.5 text-sm outline-none bg-transparent"
           />
         </div>
       );

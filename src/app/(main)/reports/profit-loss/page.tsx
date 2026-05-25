@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
+import { DateInput } from "@/components/DateInput";
 
 function fmt(n: number | undefined) {
   return Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -116,11 +117,11 @@ export default function ProfitLossPage() {
             <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-30 p-4 flex gap-4 items-end min-w-72">
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">From</label>
-                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400" />
+                <DateInput value={from} onChange={setFrom} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 bg-white" />
               </div>
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">To</label>
-                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400" />
+                <DateInput value={to} onChange={setTo} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 bg-white" />
               </div>
               <button onClick={load} disabled={loading} className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-60">
                 {loading ? "…" : "Apply"}

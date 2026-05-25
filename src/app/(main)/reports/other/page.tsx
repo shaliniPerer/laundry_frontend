@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
 import { Download } from "lucide-react";
+import { DateInput } from "@/components/DateInput";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -35,11 +36,11 @@ export default function OtherReportsPage() {
         <div className="flex flex-wrap gap-3 items-end bg-white rounded-2xl border border-slate-200 card-shadow p-5">
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">From</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <DateInput value={from} onChange={setFrom} className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">To</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <DateInput value={to} onChange={setTo} className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white" />
           </div>
           <button type="button" onClick={load} className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold">
             Load summary

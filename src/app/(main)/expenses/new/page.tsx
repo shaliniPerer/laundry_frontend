@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
+import { DateInput } from "@/components/DateInput";
 
 type Category = { pk: string; name: string };
 type AttachmentDraft = { fileName: string; mimeType: string; size: number; dataUrl: string };
@@ -93,7 +94,7 @@ export default function NewExpensePage() {
                   <span className="px-2.5 py-1.5 bg-slate-100 border-r border-slate-300">
                     <Calendar className="w-4 h-4 text-slate-500" />
                   </span>
-                  <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="flex-1 px-3 py-1.5 text-sm outline-none bg-slate-50 text-slate-500" />
+                  <DateInput required value={date} onChange={setDate} wrapperClassName="flex-1" className="w-full px-3 py-1.5 text-sm outline-none bg-slate-50 text-slate-500" />
                 </div>
               </div>
             </div>
