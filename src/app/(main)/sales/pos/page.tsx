@@ -602,7 +602,7 @@ function PosInner() {
 
       <div className="flex flex-col lg:flex-row lg:min-h-0 lg:flex-1 lg:overflow-hidden">
         {/* Left panel — invoice/cart (bottom on mobile, left on desktop) */}
-        <div className="flex flex-col w-full border-b border-slate-200 bg-white order-2 lg:order-1 lg:w-[65%] lg:border-b-0 lg:border-r lg:flex-1 lg:overflow-hidden lg:min-h-0">
+        <div className="flex flex-col w-full border-b border-slate-200 bg-white order-2 lg:order-1 lg:w-[65%] lg:border-b-0 lg:border-r lg:overflow-hidden lg:min-h-0">
 
           {/* Invoice header */}
           <div className="px-4 pt-3 pb-2 border-b border-slate-100">
@@ -672,7 +672,7 @@ function PosInner() {
 
           {/* Line items table */}
           <div className="overflow-x-auto lg:flex-1 lg:overflow-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full min-w-[520px] text-sm border-collapse">
               <thead className="sticky top-0 bg-blue-600 text-white text-xs z-10">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold">Item Name</th>
