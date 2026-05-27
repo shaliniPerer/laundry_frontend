@@ -190,8 +190,8 @@ export function AppSidebar() {
               LP
             </span>
             <div className="min-w-0">
-              <div className="truncate text-lg font-extrabold tracking-tight text-white">LaundryPro</div>
-              <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">Management suite</div>
+              <div className="truncate text-lg font-extrabold tracking-tight text-white">CIMPOS Laundry</div>
+              <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">Management System</div>
             </div>
           </Link>
           <button
