@@ -25,6 +25,8 @@ type Customer = {
 
 type Line = { itemId?: string; description: string; qty: number; unitPrice: number; discount: number; discountStr?: string; unit?: string };
 
+type OtherChargeItem = { id: string; description: string; amount: number };
+
 type MultiPayment = { id: string; type: "Cash" | "Card" | "Bank Transfer"; amount: number; cardLast4?: string; note?: string };
 
 type HeldOrder = {
@@ -35,6 +37,7 @@ type HeldOrder = {
   deliveryDate: string;
   deliveryTime?: string;
   otherCharges: number;
+  otherChargeItems?: OtherChargeItem[];
   posDiscount?: number;
   posDiscountType?: "percentage" | "fixed";
   total: number;
@@ -45,10 +48,10 @@ const COUNTRIES = ["Sri Lanka","India","United Kingdom","United States","Austral
 
 type NewCustomerForm = {
   name: string; mobile: string; email: string; phone: string;
-  country: string; city: string; address: string;
+  country: string; city: string; address: string; dob: string;
 };
 
-const INITIAL_NEW_CUST: NewCustomerForm = { name: "", mobile: "", email: "", phone: "", country: "Sri Lanka", city: "", address: "" };
+const INITIAL_NEW_CUST: NewCustomerForm = { name: "", mobile: "", email: "", phone: "", country: "Sri Lanka", city: "", address: "", dob: "" };
 
 const WALK_IN: Customer = { pk: "", name: "Walk-in Customer" };
 const HOLD_KEY = "pos_held_orders";
@@ -110,7 +113,10 @@ function PosInner() {
   const [itemSearch, setItemSearch] = useState("");
 
   const [lines, setLines] = useState<Line[]>([]);
-  const [otherCharges, setOtherCharges] = useState(0);
+  const [otherChargeItems, setOtherChargeItems] = useState<OtherChargeItem[]>([]);
+  const [newChargeDesc, setNewChargeDesc] = useState("");
+  const [newChargeAmt, setNewChargeAmt] = useState("");
+  const [chargeNameSuggestions, setChargeNameSuggestions] = useState<string[]>([]);
   const [posDiscount, setPosDiscount] = useState(0);
   const [posDiscountType, setPosDiscountType] = useState<"percentage" | "fixed">("fixed");
   const [posDiscountStr, setPosDiscountStr] = useState<string | undefined>(undefined);
@@ -127,6 +133,9 @@ function PosInner() {
 
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  // Mobile tab: "items" shows the item catalog, "cart" shows the invoice
+  // const [mobileTab, setMobileTab] = useState<"items" | "cart">("items"); // removed — single scrollable page
 
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -161,6 +170,21 @@ function PosInner() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Load unique other-charge names from past sales for autocomplete
+  useEffect(() => {
+    api<{ sales: { otherChargeItems?: { description: string; amount: number }[]; entityType?: string }[] }>("/api/sales").then((res) => {
+      if (!res.ok || !res.data?.sales) return;
+      const names = new Set<string>();
+      for (const s of res.data.sales) {
+        if (s.entityType !== "SALE") continue;
+        for (const c of s.otherChargeItems ?? []) {
+          if (c.description) names.add(c.description);
+        }
+      }
+      setChargeNameSuggestions(Array.from(names).sort());
+    });
+  }, []);
+
   // Load existing sale (edit mode)
   useEffect(() => {
     if (!editId) return;
@@ -170,12 +194,19 @@ function PosInner() {
       const s = res.data as {
         customerName?: string; customerId?: string; customerMobile?: string;
         deliveryDate?: string; otherCharges?: number;
+        otherChargeItems?: { description: string; amount: number }[];
         discountOnAll?: number; discountOnAllType?: string;
         lines?: Line[];
         paidAmount?: number;
       };
       setDeliveryDate(s.deliveryDate ?? todayISO());
-      setOtherCharges(s.otherCharges ?? 0);
+      if (Array.isArray(s.otherChargeItems) && s.otherChargeItems.length > 0) {
+        setOtherChargeItems(s.otherChargeItems.map((c, idx) => ({ id: `oc-${Date.now()}-${idx}`, description: c.description, amount: Number(c.amount) })));
+      } else if ((s.otherCharges ?? 0) > 0) {
+        setOtherChargeItems([{ id: "oc-legacy", description: "Other Charges", amount: s.otherCharges! }]);
+      } else {
+        setOtherChargeItems([]);
+      }
       setPosDiscount(s.discountOnAll ?? 0);
       setPosDiscountType((s.discountOnAllType as "percentage" | "fixed") ?? "fixed");
       setPreviouslyPaid(s.paidAmount ?? 0);
@@ -213,7 +244,13 @@ function PosInner() {
     setLines(order.lines);
     setDeliveryDate(order.deliveryDate);
     setDeliveryTime(order.deliveryTime ?? "");
-    setOtherCharges(order.otherCharges);
+    if (order.otherChargeItems && order.otherChargeItems.length > 0) {
+      setOtherChargeItems(order.otherChargeItems.map((c, idx) => ({ ...c, id: c.id || `oc-${Date.now()}-${idx}` })));
+    } else if (order.otherCharges > 0) {
+      setOtherChargeItems([{ id: "oc-legacy", description: "Other Charges", amount: order.otherCharges }]);
+    } else {
+      setOtherChargeItems([]);
+    }
     setPosDiscount(order.posDiscount ?? 0);
     setPosDiscountType(order.posDiscountType ?? "fixed");
     // Remove from held list
@@ -244,6 +281,7 @@ function PosInner() {
   const posDiscountAmount = posDiscountType === "percentage"
     ? Math.max(0, totalAmount - totalDiscount) * posDiscount / 100
     : posDiscount;
+  const otherCharges = otherChargeItems.reduce((s, c) => s + c.amount, 0);
   const grandTotal = totalAmount - totalDiscount - posDiscountAmount + otherCharges;
   const multiTotalPaid = multiPayments.reduce((s, p) => s + p.amount, 0);
   const balance = grandTotal - previouslyPaid - multiTotalPaid;
@@ -278,6 +316,7 @@ function PosInner() {
           return { ...l, qty };
         });
       }
+      // Auto-switch removed — single scrollable page
       return [...prev, { itemId: item.pk, description: item.name, qty: 1, unitPrice: item.price, discount: 0, unit: item.unit }];
     });
     setMsg(null);
@@ -357,6 +396,7 @@ function PosInner() {
       deliveryDate,
       deliveryTime,
       otherCharges,
+      otherChargeItems,
       posDiscount,
       posDiscountType,
       total: grandTotal,
@@ -364,7 +404,9 @@ function PosInner() {
     };
     saveHeldOrders([...held, order]);
     setLines([]);
-    setOtherCharges(0);
+    setOtherChargeItems([]);
+    setNewChargeDesc("");
+    setNewChargeAmt("");
     setPosDiscount(0);
     setPosDiscountType("fixed");
     setPosDiscountStr(undefined);
@@ -430,6 +472,7 @@ function PosInner() {
           deliveryDate,
           deliveryTime: deliveryTime || undefined,
           otherCharges,
+          otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           sendSms,
@@ -453,6 +496,7 @@ function PosInner() {
           deliveryDate,
           deliveryTime: deliveryTime || undefined,
           otherCharges,
+          otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           lines: linePayload,
@@ -462,7 +506,7 @@ function PosInner() {
     }
 
     setSubmitting(false);
-    router.push(`/sales/${savedId}/view`);
+    router.push(`/sales/${savedId}/view?print=1`);
   }
 
   async function handlePayAll() {
@@ -501,6 +545,7 @@ function PosInner() {
           deliveryDate,
           deliveryTime: deliveryTime || undefined,
           otherCharges,
+          otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           lines: linePayload,
@@ -526,6 +571,7 @@ function PosInner() {
           deliveryDate,
           deliveryTime: deliveryTime || undefined,
           otherCharges,
+          otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
           sendSms,
@@ -551,12 +597,12 @@ function PosInner() {
   const PAYMENT_TYPES = ["Cash", "Card", "Bank Transfer"] as const;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-hidden">
       <AppHeader title={editId ? "POS - Edit Sale" : "POS - Sales Invoice"} subtitle="" />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        {/* Left panel */}
-        <div className="flex min-h-[70vh] w-full flex-col overflow-hidden border-b border-slate-200 bg-white lg:min-h-0 lg:w-[58%] lg:border-b-0 lg:border-r">
+      <div className="flex flex-col lg:flex-row lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+        {/* Left panel — invoice/cart (bottom on mobile, left on desktop) */}
+        <div className="flex flex-col w-full border-b border-slate-200 bg-white order-2 lg:order-1 lg:w-[65%] lg:border-b-0 lg:border-r lg:flex-1 lg:overflow-hidden lg:min-h-0">
 
           {/* Invoice header */}
           <div className="px-4 pt-3 pb-2 border-b border-slate-100">
@@ -625,14 +671,14 @@ function PosInner() {
           </div>
 
           {/* Line items table */}
-          <div className="flex-1 overflow-auto">
+          <div className="overflow-x-auto lg:flex-1 lg:overflow-auto">
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 bg-blue-600 text-white text-xs z-10">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold">Item Name</th>
                   <th className="px-2 py-2 text-center font-semibold w-24">Qty</th>
                   <th className="px-2 py-2 text-center font-semibold w-20">Price</th>
-                  <th className="px-2 py-2 text-center font-semibold w-20">D/C per Kg/Pc</th>
+                  <th className="px-2 py-2 text-center font-semibold w-20">Discount</th>
                   <th className="px-2 py-2 text-right font-semibold w-24">Subtotal</th>
                   <th className="px-1 py-2 w-7 bg-blue-700" />
                 </tr>
@@ -694,12 +740,11 @@ function PosInner() {
           </div>
 
           {/* SMS + Other charges */}
-          <div className="px-4 py-2.5 border-t border-slate-100 flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
+          <div className="px-4 py-2.5 border-t border-slate-100 flex flex-col gap-3 xl:flex-row xl:items-start">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
                 <input type="checkbox" checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} className="rounded" />
-                Send SMS to Customer
-                <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold leading-none cursor-help" title="Sends order-placed SMS to customer">i</span>
+                Send SMS 
               </label>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
@@ -721,11 +766,64 @@ function PosInner() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-2 sm:justify-start">
-              <span className="text-sm text-slate-600 font-medium">Other Charges</span>
-              <input type="number" min={0} step={0.01} value={otherCharges}
-                onChange={(e) => setOtherCharges(Number(e.target.value))}
-                className="w-24 border border-slate-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm text-slate-600 font-semibold">Other Charges</span>
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  list="charge-name-suggestions"
+                  placeholder="Description"
+                  value={newChargeDesc}
+                  onChange={(e) => setNewChargeDesc(e.target.value)}
+                  className="w-full sm:w-36 border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400"
+                />
+                <datalist id="charge-name-suggestions">
+                  {chargeNameSuggestions.map((s) => <option key={s} value={s} />)}
+                </datalist>
+                <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={newChargeAmt}
+                  onChange={(e) => setNewChargeAmt(e.target.value)}
+                  className="w-full sm:w-20 border border-slate-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const amt = parseFloat(newChargeAmt);
+                    if (!newChargeDesc.trim() || isNaN(amt) || amt <= 0) return;
+                    setOtherChargeItems(prev => [...prev, { id: `oc-${Date.now()}`, description: newChargeDesc.trim(), amount: amt }]);
+                    setNewChargeDesc("");
+                    setNewChargeAmt("");
+                  }}
+                  className="shrink-0 p-0.5 rounded border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                </div>
+              </div>
+              {otherChargeItems.length > 0 && (
+                <div className="space-y-0.5 max-w-64">
+                  {otherChargeItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 rounded px-2 py-0.5 border border-slate-100">
+                      <span className="flex-1 truncate">{item.description}</span>
+                      <span className="font-semibold shrink-0">{item.amount.toFixed(2)}</span>
+                      <button type="button" onClick={() => setOtherChargeItems(prev => prev.filter(c => c.id !== item.id))}
+                        className="text-red-400 hover:text-red-600 shrink-0">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {otherChargeItems.length > 1 && (
+                    <div className="text-xs font-bold text-slate-700 px-2">
+                      Total: {otherCharges.toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between gap-2 sm:justify-start">
               <span className="text-sm text-slate-600 font-medium">POS Discount</span>
@@ -827,14 +925,14 @@ function PosInner() {
           )}
         </div>
 
-        {/* Right panel - item catalog */}
-        <div className="flex min-h-[65vh] flex-col overflow-hidden bg-white lg:min-h-0 lg:flex-1">
+        {/* Right panel — item catalog (top on mobile, right on desktop) */}
+        <div className="flex flex-col bg-white order-1 lg:order-2 lg:flex-1 lg:overflow-hidden lg:min-h-0">
           <div className="px-3 pt-3 pb-2 border-b border-slate-100 space-y-2">
             <div className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_auto_1fr_auto]">
               <div className="relative flex-1">
                 <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}
                   className="w-full appearance-none border border-slate-300 rounded px-3 py-1.5 text-sm pr-7 outline-none focus:border-blue-400 bg-white">
-                  <option value="all">All Categories</option>
+                  <option value="all">All Services</option>
                   {categories.map(c => <option key={c.pk} value={c.pk}>{c.name}</option>)}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -845,7 +943,7 @@ function PosInner() {
               <div className="relative flex-1">
                 <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)}
                   className="w-full appearance-none border border-slate-300 rounded px-3 py-1.5 text-sm pr-7 outline-none focus:border-blue-400 bg-white">
-                  <option value="all">All Brands</option>
+                  <option value="all">All Laundry Type</option>
                   {brands.map(b => <option key={b.pk} value={b.pk}>{b.name}</option>)}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -863,7 +961,7 @@ function PosInner() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="p-2 lg:flex-1 lg:overflow-y-auto">
             {filteredItems.length === 0 ? (
               <div className="text-center py-20 text-slate-400 text-sm">{items.length === 0 ? "Loading items..." : "No items match filters"}</div>
             ) : (
@@ -938,6 +1036,11 @@ function PosInner() {
                   <input value={newCustForm.city} onChange={(e) => setNewCustForm(p => ({ ...p, city: e.target.value }))}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Birthday</label>
+                  <input type="date" value={newCustForm.dob} onChange={(e) => setNewCustForm(p => ({ ...p, dob: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-600 mb-1">Address</label>
                   <textarea value={newCustForm.address} onChange={(e) => setNewCustForm(p => ({ ...p, address: e.target.value }))}
@@ -980,12 +1083,14 @@ function PosInner() {
                 {PAYMENT_TYPES.map(t => (
                   <button key={t} type="button"
                     onClick={() => { setPayType(t); setCardLast4(""); setPayNote(""); setPayAmount(Math.max(0, balance).toFixed(2)); }}
-                    className={`flex-1 py-2 rounded text-sm font-semibold border transition-colors flex items-center justify-center gap-1.5
+                    className={`flex-1 py-2 rounded text-xs sm:text-sm font-semibold border transition-colors flex items-center justify-center gap-1 sm:gap-1.5
                       ${payType === t ? "bg-blue-600 text-white border-blue-600" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
-                    {t === "Cash" && <Banknote className="w-3.5 h-3.5" />}
-                    {t === "Card" && <CreditCard className="w-3.5 h-3.5" />}
-                    {t === "Bank Transfer" && <Building2 className="w-3.5 h-3.5" />}
-                    {t}
+                    {t === "Cash" && <Banknote className="w-3.5 h-3.5 shrink-0" />}
+                    {t === "Card" && <CreditCard className="w-3.5 h-3.5 shrink-0" />}
+                    {t === "Bank Transfer" && <Building2 className="w-3.5 h-3.5 shrink-0" />}
+                    {t === "Bank Transfer" ? (
+                      <><span className="hidden sm:inline">Bank </span>Transfer</>
+                    ) : t}
                   </button>
                 ))}
               </div>

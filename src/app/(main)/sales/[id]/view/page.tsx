@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { Printer, X } from "lucide-react";
 
 type SaleLine = {
   itemId?: string;
@@ -38,6 +37,7 @@ type Sale = {
   paidAmount?: number;
   paymentStatus?: string;
   otherCharges?: number;
+  otherChargeItems?: { description: string; amount: number }[];
   discountOnAll?: number;
   discountOnAllType?: string;
   roundOff?: number;
@@ -141,6 +141,7 @@ function TotalsRow({
 export default function SaleViewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [sale, setSale] = useState<Sale | null>(null);
   const [settings, setSettings] = useState<CompanySettings>({
@@ -162,6 +163,18 @@ export default function SaleViewPage() {
       setLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!loading && sale && searchParams.get("print") === "1") {
+      const handleAfterPrint = () => router.push("/sales/list");
+      window.addEventListener("afterprint", handleAfterPrint);
+      const t = setTimeout(() => window.print(), 300);
+      return () => {
+        clearTimeout(t);
+        window.removeEventListener("afterprint", handleAfterPrint);
+      };
+    }
+  }, [loading, sale, searchParams, router]);
 
   if (loading) return <div className="p-8 text-center text-slate-400">Loading…</div>;
   if (!sale) return <div className="p-8 text-center text-red-500">Invoice not found.</div>;
@@ -185,40 +198,45 @@ export default function SaleViewPage() {
     <>
       <style>{`
         @media print {
+          @page { size: 80mm auto; margin: 0; }
+          body * { visibility: hidden !important; }
+          #invoice-print, #invoice-print * { visibility: visible !important; }
+          #invoice-print { position: fixed; top: 0; left: 0; width: 80mm; }
           .no-print { display: none !important; }
-          body { margin: 0; padding: 0; background: white; }
-          @page { size: A5 portrait; margin: 6mm; }
+        }
+        @media screen {
+          #invoice-print { box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
         }
       `}</style>
 
-      {/* Action buttons */}
-      <div className="no-print flex flex-wrap items-center gap-2 p-4 bg-white border-b border-slate-200">
-        <button
-          onClick={() => router.push("/sales/list")}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm rounded bg-slate-500 text-white hover:bg-slate-600"
-        >
-          <X className="w-4 h-4" /> Close
-        </button>
+      {/* ── Action buttons (screen only) ── */}
+      <div className="no-print flex justify-center gap-3 pt-4 pb-2">
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm rounded bg-amber-500 text-white hover:bg-amber-600"
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded text-sm transition-colors"
         >
-          <Printer className="w-4 h-4" /> Print
+          🖨 Print
+        </button>
+        <button
+          onClick={() => router.push("/sales/list")}
+          className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded text-sm transition-colors"
+        >
+          ✕ Close
         </button>
       </div>
 
       {/* Invoice */}
-      <div className="p-4 flex justify-center bg-white min-h-screen">
+      <div className="p-4 flex justify-center bg-white min-h-screen" style={{ overflowX: "hidden" }}>
         <div
           id="invoice-print"
           style={{
             fontFamily: "Arial, sans-serif",
             fontSize: "8.3pt",
-            width: "100%",
-            maxWidth: "520px",
+            width: "80mm",
             color: "#111",
-            border: "1px solid #bbb",
-            padding: "16px 20px",
+            padding: "4mm 4mm",
+            boxSizing: "border-box",
+            overflowX: "hidden",
           }}
         >
           {/* ── Company header ── */}
@@ -292,68 +310,66 @@ export default function SaleViewPage() {
           {/* ── Separator ── */}
           <DashLine />
 
-          {/* ── Items table header ── */}
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8.3pt" }}>
+          {/* ── Single unified items table — columns locked via colgroup ── */}
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8.3pt", tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: COL.desc }} />
+              <col style={{ width: COL.rate }} />
+              <col style={{ width: COL.qty }} />
+              <col style={{ width: COL.disc }} />
+              <col style={{ width: COL.total }} />
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: COL.desc, textAlign: "left", fontWeight: "bold", paddingBottom: "4px" }}>
-                  Description
-                </th>
-                <th style={{ width: COL.rate, textAlign: "center", fontWeight: "bold", paddingBottom: "4px" }}>
-                  Rate
-                </th>
-                <th style={{ width: COL.qty, textAlign: "center", fontWeight: "bold", paddingBottom: "4px" }}>
-                  Kg /{"\u00A0"}
-                  <br />
-                  Pieces
-                </th>
-                <th style={{ width: COL.disc, textAlign: "center", fontWeight: "bold", paddingBottom: "4px" }}>
-                  Discount
-                </th>
-                <th style={{ width: COL.total, textAlign: "right", fontWeight: "bold", paddingBottom: "4px" }}>
-                  Total
-                </th>
+                <th style={{ textAlign: "left", fontWeight: "bold", paddingBottom: "4px" }}>Description</th>
+                <th style={{ textAlign: "center", fontWeight: "bold", paddingBottom: "4px" }}>Rate</th>
+                <th style={{ textAlign: "center", fontWeight: "bold", paddingBottom: "4px" }}>Kg&nbsp;/<br />Pcs</th>
+                <th style={{ textAlign: "center", fontWeight: "bold", paddingBottom: "4px" }}>Disc</th>
+                <th style={{ textAlign: "right", fontWeight: "bold", paddingBottom: "4px" }}>Total</th>
+              </tr>
+              <tr>
+                <td colSpan={5} style={{ padding: 0, borderTop: "1.5px dashed #444" }} />
               </tr>
             </thead>
-          </table>
-
-          <DashLine />
-
-          {/* ── Item rows, each followed by a dash ── */}
-          {lines.map((l, i) => (
-            <div key={i}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8.3pt" }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: COL.desc, verticalAlign: "top", padding: "4px 0" }}>
+            <tbody>
+              {lines.map((l, i) => (
+                <>
+                  <tr key={`r${i}`}>
+                    <td style={{ verticalAlign: "top", padding: "4px 0", wordBreak: "break-all", overflowWrap: "anywhere" }}>
                       {l.description}
                     </td>
-                    <td style={{ width: COL.rate, textAlign: "center", padding: "4px 0" }}>
+                    <td style={{ textAlign: "center", verticalAlign: "top", padding: "4px 0" }}>
                       {fmt(l.unitPrice)}
                     </td>
-                    <td style={{ width: COL.qty, textAlign: "center", padding: "4px 0" }}>
+                    <td style={{ textAlign: "center", verticalAlign: "top", padding: "4px 0" }}>
                       {l.qty}
                     </td>
-                    <td style={{ width: COL.disc, textAlign: "center", padding: "4px 0" }}>
+                    <td style={{ textAlign: "center", verticalAlign: "top", padding: "4px 0" }}>
                       {(l.discount ?? 0) > 0 ? fmt(l.discount!) : "-"}
                     </td>
-                    <td style={{ width: COL.total, textAlign: "right", padding: "4px 0" }}>
+                    <td style={{ textAlign: "right", verticalAlign: "top", padding: "4px 0" }}>
                       {fmt(l.qty * l.unitPrice)}
                     </td>
                   </tr>
-                </tbody>
-              </table>
-              <DashLine />
-            </div>
-          ))}
+                  <tr key={`d${i}`}>
+                    <td colSpan={5} style={{ padding: 0, borderTop: "1.5px dashed #444" }} />
+                  </tr>
+                </>
+              ))}
+            </tbody>
+          </table>
 
           {/* ── Subtotal / Discount / Charges ── */}
           <TotalsRow label="Subtotal" value={fmt(grossSubtotal)} bold />
           {discountOnAll > 0 && (
             <TotalsRow label="Bill Discount (-)" value={fmt(discountOnAll)} />
           )}
-          {otherCharges !== 0 && (
-            <TotalsRow label="Delivery Charges (+)" value={fmt(otherCharges)} />
+          {(otherCharges !== 0 || (sale.otherChargeItems?.length ?? 0) > 0) && (
+            sale.otherChargeItems && sale.otherChargeItems.length > 0
+              ? sale.otherChargeItems.map((item, i) => (
+                  <TotalsRow key={i} label={`${item.description} (+)`} value={fmt(Number(item.amount))} />
+                ))
+              : <TotalsRow label="Other Charges (+)" value={fmt(otherCharges)} />
           )}
           {roundOff !== 0 && (
             <TotalsRow label="Round Off" value={fmt(roundOff)} />
@@ -391,6 +407,25 @@ export default function SaleViewPage() {
               </div>
             </>
           )}
+
+          {/* ── Terms & Conditions ── */}
+          <div style={{ fontSize: "6.5pt", color: "#555", marginTop: "8px", lineHeight: "1.5" }}>
+            <div style={{ fontWeight: "bold", marginBottom: "2px" }}>Terms &amp; Conditions:</div>
+            <div>1. Not responsible for shrinkage, color fading, items left in garments, late delivery, or unclaimed garments after 3 days.</div>
+            <div>2. Stain removal will be done at the customer&apos;s risk.</div>
+            <div>3. Liability for loss/damage is limited to 3 times the cleaning cost.</div>
+            <div>4. No responsibility for any losses after 1 month.</div>
+          </div>
+
+          <DashLine />
+
+          <div style={{ textAlign: "center", fontSize: "8pt", fontWeight: "bold", margin: "6px 0 2px" }}>
+            Thank You, Come Again!
+          </div>
+          <div style={{ textAlign: "center", fontSize: "6pt", color: "#888", marginBottom: "4px" }}>
+            <div>Design and Developed By</div>
+            <div>www.cimpos.lk</div>
+          </div>
         </div>
       </div>
     </>

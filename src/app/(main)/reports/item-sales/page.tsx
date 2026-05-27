@@ -4,7 +4,7 @@ import { StandardReportLayout } from "@/components/StandardReportLayout";
 import { api } from "@/lib/api";
 
 type Sale = { pk?: string; deliveryDate?: string; lines?: { itemId?: string; description: string; qty: number; lineTotal: number }[]; entityType?: string };
-type Item = { pk?: string; name?: string; purchasePrice?: number; entityType?: string };
+type Item = { pk?: string; name?: string; unit?: string; purchasePrice?: number; entityType?: string };
 
 export default function ItemSalesReportPage() {
   return (
@@ -21,15 +21,13 @@ export default function ItemSalesReportPage() {
             return (res.data?.items ?? []).filter((i) => i.entityType === "ITEM").map((i) => i.name ?? "").filter(Boolean);
           },
         },
-        { key: "category", label: "Category", type: "text", placeholder: "Search Category" },
+
       ]}
       columns={[
         { key: "itemName", label: "Item Name" },
         { key: "unit", label: "Unit" },
         { key: "qty", label: "Sales Quantity", right: true },
         { key: "salesPrice", label: "Sales Price(LKR)", right: true },
-        { key: "purchasePrice", label: "Purchase Price(LKR)", right: true },
-        { key: "grossProfit", label: "Gross Profit(LKR)", right: true },
       ]}
       fetchData={async (form) => {
         const [salesRes, itemsRes] = await Promise.all([
@@ -45,30 +43,26 @@ export default function ItemSalesReportPage() {
         const itemMap: Record<string, Item> = Object.fromEntries(
           (itemsRes.data?.items ?? []).filter((i) => i.entityType === "ITEM").map((i) => [i.pk?.replace("ITEM#", "") ?? "", i])
         );
-        const agg: Record<string, { name: string; qty: number; salesPrice: number; purchasePrice: number }> = {};
+        const agg: Record<string, { name: string; unit: string; qty: number; salesPrice: number }> = {};
         for (const sale of sales) {
           for (const line of (sale.lines ?? [])) {
             const key = line.itemId || line.description;
+            const itemLookupId = line.itemId?.replace("ITEM#", "") ?? "";
+            const item = itemLookupId ? itemMap[itemLookupId] : null;
             if (!agg[key]) {
-              const item = line.itemId ? itemMap[line.itemId] : null;
-              agg[key] = { name: item?.name || line.description, qty: 0, salesPrice: 0, purchasePrice: 0 };
+              agg[key] = { name: item?.name || line.description, unit: item?.unit ?? "", qty: 0, salesPrice: 0 };
             }
-            agg[key].qty += line.qty;
-            agg[key].salesPrice += line.lineTotal;
-            if (line.itemId && itemMap[line.itemId]) {
-              agg[key].purchasePrice += Number(itemMap[line.itemId].purchasePrice ?? 0) * line.qty;
-            }
+            agg[key].qty += Number(line.qty ?? 0);
+            agg[key].salesPrice += Number(line.lineTotal ?? 0);
           }
         }
         return Object.values(agg)
           .filter((r) => !form.itemName || form.itemName === "-All-" || r.name.toLowerCase() === form.itemName.toLowerCase())
           .map((r) => ({
             itemName: r.name,
-            unit: "",
+            unit: r.unit,
             qty: r.qty.toFixed(2),
             salesPrice: r.salesPrice.toFixed(2),
-            purchasePrice: r.purchasePrice.toFixed(2),
-            grossProfit: (r.salesPrice - r.purchasePrice).toFixed(2),
           }));
       }}
     />

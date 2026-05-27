@@ -31,7 +31,6 @@ export default function SalesReportPage() {
         { key: "invoiceTotal", label: "Invoice Total(LKR)", right: true },
         { key: "paidPayment", label: "Paid Payment(LKR)", right: true },
         { key: "dueAmount", label: "Due Amount(LKR)", right: true },
-        { key: "dueDays", label: "Due Days" },
       ]}
       fetchData={async (form) => {
         const [salesRes, custRes] = await Promise.all([
@@ -63,7 +62,6 @@ export default function SalesReportPage() {
               invoiceTotal: total.toFixed(2),
               paidPayment: paid.toFixed(2),
               dueAmount: due.toFixed(2),
-              dueDays: "",
             };
           });
       }}

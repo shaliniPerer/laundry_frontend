@@ -21,7 +21,6 @@ import {
   Trash2,
   Copy,
   FileSpreadsheet,
-  Columns3,
   Banknote,
   Building2,
   MessageSquare,
@@ -71,7 +70,7 @@ function saleOccurredDate(s: Sale) {
   return (s.createdAt || "").slice(0, 10);
 }
 
-const PAGE_SIZES = [10, 25, 50, 100];
+const PAGE_SIZES = [10, 25, 50, 100, 200];
 
 export default function SalesListPage() {
   const router = useRouter();
@@ -84,6 +83,7 @@ export default function SalesListPage() {
   const [customerFilter, setCustomerFilter] = useState(customerFromQuery);
   const [customerSearch, setCustomerSearch] = useState(customerFromQuery);
   const [showCustomerDrop, setShowCustomerDrop] = useState(false);
+  const [invoiceFilter, setInvoiceFilter] = useState("");
   const [createdByFilter, setCreatedByFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -92,6 +92,7 @@ export default function SalesListPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [openSmsMenu, setOpenSmsMenu] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   const [paySale, setPaySale] = useState<Sale | null>(null);
   const [payType, setPayType] = useState<"Cash" | "Card" | "Bank Transfer">("Cash");
@@ -166,14 +167,33 @@ export default function SalesListPage() {
       s.status?.toLowerCase().includes(q) ||
       s.createdBy?.toLowerCase().includes(q);
     const matchCustomer = !customerFilter || s.customerName === customerFilter;
+    const matchInvoice = !invoiceFilter || (s.saleNumber ?? "").toLowerCase().includes(invoiceFilter.toLowerCase());
     const matchCreatedBy = !createdByFilter || s.createdBy === createdByFilter;
     const matchFrom = !fromDate || (s.deliveryDate ?? "") >= fromDate;
     const matchTo = !toDate || (s.deliveryDate ?? "") <= toDate;
-    return matchSearch && matchCustomer && matchCreatedBy && matchFrom && matchTo;
+    return matchSearch && matchCustomer && matchInvoice && matchCreatedBy && matchFrom && matchTo;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const allPageSelected = paginated.length > 0 && paginated.every(s => selectedIds.has(s.pk));
+  function toggleAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) paginated.forEach(s => next.delete(s.pk));
+      else paginated.forEach(s => next.add(s.pk));
+      return next;
+    });
+  }
+  function toggleId(pk: string) {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(pk) ? next.delete(pk) : next.add(pk); return next; });
+  }
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} selected sale(s)? This cannot be undone.`)) return;
+    for (const pk of selectedIds) await api(`/api/sales/${pk.replace("SALE#", "")}`, { method: "DELETE" });
+    setSelectedIds(new Set());
+    loadData();
+  }
 
   const totalInvoices = filtered.length;
   const totalAmount = filtered.reduce((s, r) => s + Number(r.total ?? 0), 0);
@@ -225,6 +245,10 @@ export default function SalesListPage() {
     const amt = parseFloat(payAmount);
     if (!payAmount || isNaN(amt) || amt <= 0) return;
     if (payType === "Card" && cardLast4.length !== 4) { setPayMsg({ type: "err", text: "Enter last 4 digits of card." }); return; }
+    if (payType !== "Cash" && amt > payBalance + 0.005) {
+      setPayMsg({ type: "err", text: `${payType} payment cannot exceed balance due (${payBalance.toFixed(2)}).` });
+      return;
+    }
     setMultiPayments(prev => [...prev, {
       id: `pay-${Date.now()}`,
       type: payType,
@@ -273,6 +297,7 @@ export default function SalesListPage() {
       setSubmittingPay(false);
       setPaySale(null);
       loadData();
+      window.open(`/sales/${id}/view?print=1`, '_blank');
     }
   }
 
@@ -386,6 +411,18 @@ export default function SalesListPage() {
                 </div>
               )}
             </div>
+
+            {/* Invoice number filter */}
+            <div className="min-w-36">
+              <label className="text-xs text-slate-500 mb-1 block">Invoice No.</label>
+              <input
+                value={invoiceFilter}
+                onChange={(e) => { setInvoiceFilter(e.target.value); setPage(1); }}
+                placeholder="e.g. INV-001"
+                className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
+              />
+            </div>
+
             {/* Created by */}
             <div className="min-w-36">
               <label className="text-xs text-slate-500 mb-1 block">Created by</label>
@@ -436,16 +473,11 @@ export default function SalesListPage() {
             <ExportBtn icon={<FileText className="w-3.5 h-3.5" />} label="PDF" onClick={handlePrint} color="bg-red-500" />
             <ExportBtn icon={<Printer className="w-3.5 h-3.5" />} label="Print" onClick={handlePrint} color="bg-slate-700" />
             <ExportBtn icon={<FileText className="w-3.5 h-3.5" />} label="CSV" onClick={exportCSV} color="bg-green-700" />
-            <ExportBtn icon={<Columns3 className="w-3.5 h-3.5" />} label="Columns" onClick={() => {}} color="bg-slate-500" />
-            <div className="flex items-center gap-1 ml-2">
-              <Search className="w-4 h-4 text-slate-400" />
-              <input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search…"
-                className="border border-slate-300 rounded px-3 py-1 text-sm outline-none focus:border-blue-400 w-44"
-              />
-            </div>
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors ml-2">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
           </div>
         </div>
 
@@ -460,7 +492,7 @@ export default function SalesListPage() {
               <thead>
                 <tr className="bg-slate-700 text-white text-xs">
                   <th className="px-3 py-2.5 text-left w-8 no-print">
-                    <input type="checkbox" className="rounded" />
+                    <input type="checkbox" className="rounded" checked={allPageSelected} onChange={toggleAll} />
                   </th>
                   {(["Sales Date", "Deliver Date", "Sales Code", "Customer Name", "Total", "Paid", "Due", "Payment Status", "Created By"] as string[]).map((h) => (
                     <th key={h} className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
@@ -473,10 +505,10 @@ export default function SalesListPage() {
               <tbody>
                 {paginated.map((s, i) => {
                   const id = saleId(s);
-                  const due = Number(s.total ?? 0) - Number(s.paidAmount ?? 0);
+                  const due = Math.max(0, Number(s.total ?? 0) - Number(s.paidAmount ?? 0));
                   return (
                     <tr key={s.pk} className={`border-t border-slate-100 hover:bg-slate-50 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
-                      <td className="px-3 py-2 no-print"><input type="checkbox" className="rounded" /></td>
+                      <td className="px-3 py-2 no-print"><input type="checkbox" className="rounded" checked={selectedIds.has(s.pk)} onChange={() => toggleId(s.pk)} /></td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(saleOccurredDate(s))}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(s.deliveryDate)}</td>
                       <td className="px-3 py-2 font-mono text-xs">
@@ -490,7 +522,7 @@ export default function SalesListPage() {
                       </td>
                       <td className="px-3 py-2">{s.customerName}</td>
                       <td className="px-3 py-2 text-right">{Number(s.total ?? 0).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right">{Number(s.paidAmount ?? 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0)).toFixed(2)}</td>
                       <td className="px-3 py-2 text-right">{due.toFixed(2)}</td>
                       <td className="px-3 py-2">
                         <PaymentBadge 
@@ -565,11 +597,7 @@ export default function SalesListPage() {
                             <ActionItem icon={<CreditCard className="w-3.5 h-3.5 text-purple-500" />} label="View Payments"
                               onClick={() => { setOpenMenu(null); openViewPaymentsModal(s); }} />
                             <hr className="my-1 border-slate-100" />
-                            <ActionItem icon={<ReceiptText className="w-3.5 h-3.5 text-cyan-600" />} label="POS Invoice"
-                              onClick={() => { router.push(`/sales/${id}/view?print=1`); }} />
-                            <hr className="my-1 border-slate-100" />
-                            <ActionItem icon={<RotateCcw className="w-3.5 h-3.5 text-orange-500" />} label="Sales Return"
-                              onClick={() => { router.push(`/sales/returns/list?saleId=${id}&saleCode=${encodeURIComponent(s.saleNumber ?? "")}`); }} />
+                            
                             <hr className="my-1 border-slate-100" />
                             <ActionItem icon={<Trash2 className="w-3.5 h-3.5 text-red-600" />} label={deleting === id ? "Deleting…" : "Delete"}
                               onClick={() => handleDelete(s)} danger />
@@ -714,6 +742,7 @@ export default function SalesListPage() {
                 <div className="flex-1">
                   <label className="text-xs text-slate-500 mb-1 block">Amount (LKR)</label>
                   <input type="number" min={0} step={0.01} value={payAmount}
+                    max={payType !== "Cash" ? Math.max(0, payBalance) : undefined}
                     onChange={e => setPayAmount(e.target.value)}
                     className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400"
                     placeholder="0.00" />
@@ -836,7 +865,7 @@ function SummaryCard({ icon, label, value, color }: { icon: React.ReactNode; lab
       <div>
         <div className="text-2xl font-bold leading-tight">{value}</div>
         <div className="text-sm opacity-90 mt-1">{label}</div>
-        <div className="text-xs opacity-70 mt-2 cursor-pointer hover:opacity-100">More info ›</div>
+        
       </div>
       {icon}
     </div>

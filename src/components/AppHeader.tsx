@@ -13,7 +13,6 @@ const GROUPS: { title: string; items: { href: string; label: string }[] }[] = [
       { href: "/sales/pos", label: "POS" },
       { href: "/sales/list", label: "Sales List" },
       { href: "/sales/holds", label: "Hold Orders" },
-      { href: "/sales/returns/list", label: "Sales Return List" },
     ],
   },
   {
@@ -52,7 +51,6 @@ const GROUPS: { title: string; items: { href: string; label: string }[] }[] = [
       { href: "/reports/item-sales", label: "Item Sales Report" },
       { href: "/reports/item-purchase", label: "Item Purchase Report" },
       { href: "/reports/sales", label: "Sales Report" },
-      { href: "/reports/sales-return", label: "Sales Return Report" },
       { href: "/reports/sales-payments", label: "Sales Payments Report" },
       { href: "/reports/expense", label: "Expense Report" },
     ],
@@ -60,9 +58,11 @@ const GROUPS: { title: string; items: { href: string; label: string }[] }[] = [
   {
     title: "SMS",
     items: [
-      { href: "/sms", label: "Send SMS" },
-      { href: "/sms/templates", label: "SMS Templates" },
-      { href: "/sms/log", label: "SMS Log" },
+      { href: "/sms/log",       label: "Message Log"       },
+      { href: "/sms/customers", label: "Customer Sync"    },
+      { href: "/sms/events",    label: "Event Manager"    },
+      { href: "/sms/templates", label: "Templates"         },
+      { href: "/sms/birthdays", label: "Customer Birthday" },
     ],
   },
   {
@@ -98,13 +98,8 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
       className="sticky top-0 z-30 shrink-0 border-b shadow-sm"
       style={{ background: "var(--header-bg)", borderColor: "var(--header-border)" }}
     >
-      <div className="flex min-h-20 items-center justify-between gap-4 px-4 py-4 pl-16 backdrop-blur-md sm:px-6 lg:min-h-24 lg:px-8 lg:pl-8">
+      <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-3 pl-16 backdrop-blur-md sm:min-h-20 sm:py-4 sm:px-6 lg:min-h-24 lg:px-8 lg:pl-8">
         <div className="min-w-0">
-          {activeGroup && (
-            <div className="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
-              {activeGroup.title} module
-            </div>
-          )}
           <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl lg:text-[28px]" style={{ color: "var(--foreground)" }}>
             {title}
           </h1>
@@ -146,9 +141,6 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
           className="header-tabs flex items-center gap-2 overflow-x-auto px-4 pb-3 pl-16 sm:px-6 lg:px-8 lg:pl-8"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <span className="mr-1 shrink-0 rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em]" style={{ color: "var(--accent)", background: "var(--surface2)" }}>
-            {activeGroup.title}
-          </span>
           {activeGroup.items.map((item, idx) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
             return (

@@ -48,6 +48,7 @@ export default function ExpenseListPage() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [_openActionId, setOpenActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editExp, setEditExp] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
   const [editSaving, setEditSaving] = useState(false);
@@ -87,6 +88,24 @@ export default function ExpenseListPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalAmount = filtered.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
+  const allPageSelected = paginated.length > 0 && paginated.every(e => selectedIds.has(e.pk));
+  function toggleAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) paginated.forEach(e => next.delete(e.pk));
+      else paginated.forEach(e => next.add(e.pk));
+      return next;
+    });
+  }
+  function toggleId(pk: string) {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(pk) ? next.delete(pk) : next.add(pk); return next; });
+  }
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} selected expense(s)? This cannot be undone.`)) return;
+    for (const pk of selectedIds) await api(`/api/expenses/${pk.replace("EXPENSE#", "")}`, { method: "DELETE" });
+    setSelectedIds(new Set());
+    load();
+  }
 
   async function deleteExp(e: Expense) {
     if (!confirm("Delete this expense?")) return;
@@ -162,6 +181,11 @@ export default function ExpenseListPage() {
               { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }, { label: "Columns", fn: () => {} }].map((btn) => (
               <button key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
             ))}
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
             <div className="flex items-center gap-1 ml-1">
               <span className="text-sm text-slate-600">Search:</span>
               <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 w-36" />
@@ -173,7 +197,7 @@ export default function ExpenseListPage() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
-                <th className="px-3 py-2.5 w-8"><input type="checkbox" /></th>
+                <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allPageSelected} onChange={toggleAll} /></th>
                 {["Date", "Category", "Reference No.", "Expense for", "Amount", "Note", "Attachment", "Created by", "Action"].map((h) => (
                   <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
                 ))}
@@ -186,7 +210,7 @@ export default function ExpenseListPage() {
                 <tr><td colSpan={9} className="px-4 py-16 text-center text-slate-400 text-sm">No expenses found</td></tr>
               ) : paginated.map((e, i) => (
                 <tr key={e.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
-                  <td className="px-3 py-2 text-center"><input type="checkbox" /></td>
+                  <td className="px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(e.pk)} onChange={() => toggleId(e.pk)} /></td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-3 py-2 text-slate-700">{catMap[e.categoryId || ""] || e.categoryName || "—"}</td>
                   <td className="px-3 py-2 text-slate-500 text-xs">{e.referenceNo || ""}</td>
@@ -233,8 +257,8 @@ export default function ExpenseListPage() {
       </div>
 
       {editExp && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg my-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <h2 className="font-semibold text-slate-800">Edit Expense</h2>
               <button onClick={() => setEditExp(null)}><X className="w-5 h-5 text-slate-400" /></button>

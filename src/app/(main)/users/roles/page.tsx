@@ -58,8 +58,7 @@ const MODULES: Module[] = [
     id: "reports", label: "Reports", icon: BarChart2,
     color: "text-sky-600 bg-sky-50",
     actions: [
-      "item-sales", "item-purchase", "sales", "sales-return",
-      "sales-payments", "expense",
+      "item-sales", "sales", "sales-payments", "expense", "other-charges",
     ],
   },
   {
@@ -97,6 +96,7 @@ const ACTION_LABEL: Record<string, string> = {
   "item-sales": "Item Sales", "item-purchase": "Item Purchase",
   sales: "Sales", "sales-return": "Sales Return",
   "sales-payments": "Sales Payments", expense: "Expense Report",
+  "other-charges": "Other Charges Report",
   "profit-loss": "Profit & Loss", stock: "Stock",
   purchase: "Purchase", "purchase-payments": "Purchase Payments",
   "purchase-return": "Purchase Return", "expired-items": "Expired Items",

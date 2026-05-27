@@ -29,6 +29,7 @@ type CustomerForm = {
   country: string;
   city: string;
   address: string;
+  dob: string;
 };
 
 const initialForm: CustomerForm = {
@@ -39,6 +40,7 @@ const initialForm: CustomerForm = {
   country: "Sri Lanka",
   city: "",
   address: "",
+  dob: "",
 };
 
 export default function NewCustomerPage() {
@@ -60,6 +62,7 @@ export default function NewCustomerPage() {
       method: "POST",
       body: JSON.stringify({
         ...form,
+        dob: form.dob || undefined,
         status: "active",
       }),
     });
@@ -134,6 +137,17 @@ export default function NewCustomerPage() {
               <input
                 value={form.city}
                 onChange={(e) => setField("city", e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>
+                Birthday 
+              </label>
+              <input
+                type="date"
+                value={form.dob}
+                onChange={(e) => setField("dob", e.target.value)}
                 className={inputCls}
               />
             </div>

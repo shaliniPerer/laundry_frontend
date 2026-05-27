@@ -59,9 +59,11 @@ export default function CustomerListPage() {
   const [returns, setReturns] = useState<SaleReturn[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [_openActionId, setOpenActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
   const [editMsg, setEditMsg] = useState<string | null>(null);
@@ -161,7 +163,7 @@ export default function CustomerListPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return customers.filter((customer) => {
+    const list = customers.filter((customer) => {
       return (
         !q ||
         (customer.name || "").toLowerCase().includes(q) ||
@@ -170,10 +172,33 @@ export default function CustomerListPage() {
         (customer.customerNumber || "").toLowerCase().includes(q)
       );
     });
-  }, [customers, search]);
+    if (sortDir === null) return list;
+    return [...list].sort((a, b) => {
+      const diff = getStats(a).total - getStats(b).total;
+      return sortDir === "desc" ? -diff : diff;
+    });
+  }, [customers, search, sortDir, getStats]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const allPageSelected = paginated.length > 0 && paginated.every(c => selectedIds.has(c.pk));
+  function toggleAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) paginated.forEach(c => next.delete(c.pk));
+      else paginated.forEach(c => next.add(c.pk));
+      return next;
+    });
+  }
+  function toggleId(pk: string) {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(pk) ? next.delete(pk) : next.add(pk); return next; });
+  }
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} selected customer(s)? This cannot be undone.`)) return;
+    for (const pk of selectedIds) await api(`/api/customers/${pk.replace("CUSTOMER#", "")}`, { method: "DELETE" });
+    setSelectedIds(new Set());
+    loadData();
+  }
 
   const footerTotals = useMemo(() => {
     return filtered.reduce(
@@ -291,7 +316,6 @@ export default function CustomerListPage() {
           stats.total.toFixed(2),
           stats.paid.toFixed(2),
           stats.due.toFixed(2),
-          stats.returnDue.toFixed(2),
           formatDiscountType(customer),
           formatDiscountAmount(customer),
         ].join("\t");
@@ -303,7 +327,7 @@ export default function CustomerListPage() {
 
   function downloadCSV() {
     const header =
-      "Customer ID,Customer Name,Mobile,Email,Total,Paid,Due,Sales Return,Discount Type,Discount Amount";
+      "Customer ID,Customer Name,Mobile,Email,Total,Paid,Due,Discount Type,Discount Amount";
     const rows = filtered.map((customer) => {
       const stats = getStats(customer);
       const displayId =
@@ -318,7 +342,6 @@ export default function CustomerListPage() {
         stats.total.toFixed(2),
         stats.paid.toFixed(2),
         stats.due.toFixed(2),
-        stats.returnDue.toFixed(2),
         formatDiscountType(customer),
         formatDiscountAmount(customer),
       ].join(",");
@@ -388,6 +411,24 @@ export default function CustomerListPage() {
                 {button.label}
               </button>
             ))}
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
+
+            <div className="flex items-center gap-1 ml-1">
+              <span className="text-sm text-slate-600">Sort:</span>
+              <select
+                value={sortDir ?? ""}
+                onChange={(e) => { setSortDir(e.target.value === "" ? null : e.target.value as "asc" | "desc"); setPage(1); }}
+                className="border border-slate-300 rounded px-2 py-1.5 text-sm bg-white outline-none focus:border-blue-400"
+              >
+                <option value="">Default</option>
+                <option value="desc">Total: High → Low</option>
+                <option value="asc">Total: Low → High</option>
+              </select>
+            </div>
 
             <div className="flex items-center gap-1 ml-1">
               <span className="text-sm text-slate-600">Search:</span>
@@ -408,7 +449,7 @@ export default function CustomerListPage() {
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8">
-                  <input type="checkbox" className="rounded" />
+                  <input type="checkbox" className="rounded" checked={allPageSelected} onChange={toggleAll} />
                 </th>
                 {[
                   ["Customer ID", "text-left"],
@@ -418,7 +459,6 @@ export default function CustomerListPage() {
                   ["Total", "text-right"],
                   ["Paid", "text-right"],
                   ["Due", "text-right"],
-                  ["Sales Return", "text-right"],
                   ["Discount Type", "text-center"],
                   ["Discount Amount", "text-right"],
                   ["Action", "text-center"],
@@ -432,13 +472,13 @@ export default function CustomerListPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-16 text-center text-slate-400 text-sm">
+                  <td colSpan={10} className="px-4 py-16 text-center text-slate-400 text-sm">
                     Loading...
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-16 text-center text-slate-400 text-sm">
+                  <td colSpan={10} className="px-4 py-16 text-center text-slate-400 text-sm">
                     No customers found
                   </td>
                 </tr>
@@ -461,7 +501,7 @@ export default function CustomerListPage() {
                       }`}
                     >
                       <td className="px-3 py-2 text-center">
-                        <input type="checkbox" className="rounded" />
+                        <input type="checkbox" className="rounded" checked={selectedIds.has(customer.pk)} onChange={() => toggleId(customer.pk)} />
                       </td>
                       <td className="px-3 py-2 text-slate-700 font-mono text-xs">{displayId}</td>
                       <td className="px-3 py-2 font-medium text-slate-800">{customer.name}</td>
@@ -472,9 +512,6 @@ export default function CustomerListPage() {
                       <td className="px-3 py-2 text-right text-slate-700">{stats.total.toFixed(2)}</td>
                       <td className="px-3 py-2 text-right text-slate-700">{stats.paid.toFixed(2)}</td>
                       <td className="px-3 py-2 text-right text-slate-700">{stats.due.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right text-slate-700">
-                        {stats.returnDue.toFixed(2)}
-                      </td>
                       <td className="px-3 py-2">
                         <select
                           value={discountDraft.discountType}
@@ -568,9 +605,6 @@ export default function CustomerListPage() {
                   <td className="px-3 py-2.5 text-right text-slate-800">
                     {footerTotals.due.toFixed(2)}
                   </td>
-                  <td className="px-3 py-2.5 text-right text-slate-800">
-                    {footerTotals.ret.toFixed(2)}
-                  </td>
                   <td colSpan={3} />
                 </tr>
               </tfoot>
@@ -634,7 +668,7 @@ export default function CustomerListPage() {
             </div>
 
             <form onSubmit={saveEdit} className="p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   ["name", "Customer Name*", true],
                   ["mobile", "Mobile", false],
@@ -746,6 +780,21 @@ export default function CustomerListPage() {
               <div><b>Previous Due:</b> {Number(viewCustomer.previousDue || 0).toFixed(2)}</div>
               <div><b>Discount Type:</b> {formatDiscountType(viewCustomer)}</div>
               <div><b>Discount Amount:</b> {formatDiscountAmount(viewCustomer)}{viewCustomer.discountType === "percentage" && viewCustomer.discount != null ? "%" : ""}</div>
+
+              {/* Sales totals */}
+              {(() => {
+                const s = getStats(viewCustomer);
+                return (
+                  <>
+                    <div className="sm:col-span-2 border-t border-slate-100 pt-2 mt-1" />
+                    <div><b>Total Sales:</b> <span className="text-slate-700">{s.total.toFixed(2)}</span></div>
+                    <div><b>Total Paid:</b> <span className="text-green-700">{s.paid.toFixed(2)}</span></div>
+                    <div><b>Due Balance:</b> <span className={s.due > 0 ? "text-red-600 font-semibold" : "text-slate-700"}>{s.due.toFixed(2)}</span></div>
+
+                  </>
+                );
+              })()}
+
               <div className="sm:col-span-2"><b>Address:</b> {viewCustomer.address || "-"}</div>
               <div className="sm:col-span-2">
                 <b>Created At:</b>{" "}

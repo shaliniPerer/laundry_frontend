@@ -184,13 +184,7 @@ export default function ProfitLossPage() {
             <Row label="Total Discount on Sales" value={fmt(d?.totalDiscountSales)} />
             <Row label="Paid Payment" value={fmt(d?.paidPaymentSales)} />
             <Row label="Sales Due" value={fmt(d?.salesDue)} red />
-            <Row label="Sales Return" value="" blue />
-            <Row label="Total Sales Return" value={fmt(d?.totalSalesReturn)} />
-            <Row label="Total Sales Return Tax" value="0.00" />
-            <Row label="Total Other Charges of Sales Return" value="0.00" />
-            <Row label="Total Discount on Sales Return" value="0.00" />
-            <Row label="Paid Payment" value="0.00" />
-            <Row label="Sales Return Due" value={fmt(d?.salesReturnDue)} red />
+
           </div>
         </div>
       </div>

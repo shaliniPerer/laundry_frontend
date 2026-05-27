@@ -55,7 +55,7 @@ export default function PaymentReceivePage() {
     setSaving(false);
     if (res.ok) {
       setMsg({ type: "ok", text: "Payment recorded successfully." });
-      setTimeout(() => router.push(`/sales/${id}/view`), 1200);
+      setTimeout(() => router.push(`/sales/${id}/view?print=1`), 1200);
     } else {
       setMsg({ type: "err", text: res.error ?? "Failed to record payment." });
     }

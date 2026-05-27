@@ -84,7 +84,7 @@ export function DropdownMenu({
           <div
             ref={menuRef}
             style={{ position: "fixed", zIndex: 9999, minWidth: 176, ...menuStyle }}
-            className="bg-white border border-slate-200 rounded-md shadow-xl py-1"
+            className="dropdown-portal rounded-md shadow-xl py-1"
             onClick={() => setOpen(false)}
           >
             {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
   ChevronDown,
@@ -14,6 +14,8 @@ import {
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
 import { DateInput } from "@/components/DateInput";
+import { useRouter } from "next/navigation";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,9 +54,24 @@ function BarChart({
   bars: { label: string; value: number; color: string }[];
   showLine?: boolean;
 }) {
-  const max = Math.max(...bars.map((b) => b.value), 1);
-  const W = 400;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(600);
   const H = 200;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.round(entry.contentRect.width);
+        if (w > 0) setW(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const max = Math.max(...bars.map((b) => b.value), 1);
   const padT = 10;
   const padB = 36;
   const padL = 40;
@@ -84,7 +101,8 @@ function BarChart({
   }
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+    <div ref={containerRef} className="w-full">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: "block", height: H }}>
       {yLines.map((l) => (
         <g key={l.y}>
           <line
@@ -120,9 +138,10 @@ function BarChart({
         );
       })}
       {showLine && linePath && (
-        <path d={linePath} fill="none" stroke="#1e293b" strokeWidth="1.5" />
+        <path d={linePath} fill="none" stroke="#1e293b" strokeWidth="1.5" className="chart-trend-line" />
       )}
     </svg>
+    </div>
   );
 }
 
@@ -131,9 +150,24 @@ function GroupedBarChart({
 }: {
   data: { month: string; revenue: number; expenses: number }[];
 }) {
-  const max = Math.max(...data.flatMap((d) => [d.revenue, d.expenses]), 1);
-  const W = 600;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(700);
   const H = 220;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.round(entry.contentRect.width);
+        if (w > 0) setW(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const max = Math.max(...data.flatMap((d) => [d.revenue, d.expenses]), 1);
   const padT = 10;
   const padB = 30;
   const padL = 55;
@@ -156,7 +190,8 @@ function GroupedBarChart({
   };
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+    <div ref={containerRef} className="w-full">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: "block", height: H }}>
       {yLines.map((l) => (
         <g key={l.y}>
           <line x1={padL} y1={l.y} x2={W - padR} y2={l.y} stroke="#e2e8f0" strokeWidth="1" />
@@ -189,6 +224,7 @@ function GroupedBarChart({
         );
       })}
     </svg>
+    </div>
   );
 }
 
@@ -196,7 +232,7 @@ function MonthlySalesChart({ data }: { data: { month: string; total: number }[] 
   const bars = data.map((item) => ({
     label:
       ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
-        Math.max(0, Number(item.month) - 1)
+      Math.max(0, Number(item.month) - 1)
       ] ?? item.month,
     value: item.total,
     color: "#14b8a6",
@@ -260,6 +296,8 @@ function statusLabel(s: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+
+  const router = useRouter();
   const today = useMemo(() => toISODate(new Date()), []);
   const tomorrow = useMemo(() => {
     const d = new Date();
@@ -299,7 +337,7 @@ export default function DashboardPage() {
     setLoading(true);
     const [salesRes, statsRes] = await Promise.all([
       api<{ sales: SaleWithCustomer[] }>(
-        `/api/dashboard/deliveries?start=${rangeStart}&end=${rangeEnd}`
+        `/api/dashboard/deliveries?start=${rangeStart}&end=${rangeEnd}&statuses=pending,ready_to_deliver`
       ),
       api<Stats>(
         `/api/dashboard/stats?start=${overviewStart}&end=${overviewEnd}&year=${salesYear}`
@@ -316,11 +354,13 @@ export default function DashboardPage() {
 
   const filteredSales = sales.filter((s) => {
     const q = search.toLowerCase();
+    const st = (s.status || "").toLowerCase().replace(/[\s-]+/g, "_");
+    const matchStatus = st === "pending" || st === "ready_to_deliver";
     const matchSearch =
       !q ||
       (s.saleNumber || "").toLowerCase().includes(q) ||
       (s.customerName || "").toLowerCase().includes(q);
-    return matchSearch;
+    return matchStatus && matchSearch;
   });
 
   const sc = stats?.statusCounts;
@@ -430,27 +470,42 @@ export default function DashboardPage() {
   }
 
   return (
+
     <PageScaffold title="Dashboard" subtitle="">
       <div className="space-y-6">
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => router.push('sales/pos')}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            + New Sales
+          </button>
+        </div>
+
+
         {/* ── Stat cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map(({ label, value, gradient, iconBg, Icon }) => (
             <div
               key={label}
-              className={`bg-linear-to-br ${gradient} rounded-2xl p-5 flex items-center justify-between border border-white/80 shadow-sm`}
+              className={`bg-linear-to-br ${gradient} rounded-2xl p-3 sm:p-5 flex items-center justify-between border border-white/80 shadow-sm`}
             >
               <div>
-                <p className="text-sm text-slate-500">{label}</p>
-                <p className="text-4xl font-bold text-slate-800 mt-1">{value}</p>
+                <p className="text-xs sm:text-sm text-slate-500">{label}</p>
+                <p className="text-2xl sm:text-4xl font-bold text-slate-800 mt-1">
+                  {value}
+                </p>
               </div>
+
               <div
-                className={`w-14 h-14 ${iconBg} rounded-full flex items-center justify-center shadow-md`}
+                className={`w-10 h-10 sm:w-14 sm:h-14 ${iconBg} rounded-full flex items-center justify-center shadow-md`}
               >
-                <Icon className="w-7 h-7 text-white" />
+                <Icon className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
               </div>
             </div>
           ))}
         </div>
+
 
         {/* ── Today's Delivery ── */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -467,14 +522,10 @@ export default function DashboardPage() {
                 includeTomorrow
               />
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search Here"
-                  className="pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400"
-                />
+
               </div>
+
+
             </div>
           </div>
 

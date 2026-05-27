@@ -21,6 +21,7 @@ export default function CategoryListPage() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [_openActionId, setOpenActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
   const [editSaving, setEditSaving] = useState(false);
@@ -60,6 +61,24 @@ export default function CategoryListPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const allPageSelected = paginated.length > 0 && paginated.every(c => selectedIds.has(c.pk));
+  function toggleAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) paginated.forEach(c => next.delete(c.pk));
+      else paginated.forEach(c => next.add(c.pk));
+      return next;
+    });
+  }
+  function toggleId(pk: string) {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(pk) ? next.delete(pk) : next.add(pk); return next; });
+  }
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} selected item(s)? This cannot be undone.`)) return;
+    for (const pk of selectedIds) await api(`/api/items/categories/${pk.replace("CATEGORY#", "")}`, { method: "DELETE" });
+    setSelectedIds(new Set());
+    load();
+  }
 
   async function deleteCategory(c: Category) {
     if (!confirm(`Delete "${c.name}"?`)) return;
@@ -137,6 +156,11 @@ export default function CategoryListPage() {
               { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }].map((btn) => (
               <button type="button" key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
             ))}
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
             <div className="flex items-center gap-1 ml-1">
               <span className="text-sm text-slate-600">Search:</span>
               <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 w-36" />
@@ -148,7 +172,7 @@ export default function CategoryListPage() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
-                <th className="px-3 py-2.5 w-8"><input type="checkbox" /></th>
+                <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allPageSelected} onChange={toggleAll} /></th>
                 {["Service Code", "Service Name", "Description", "Action"].map((h) => (
                   <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
                 ))}
@@ -161,7 +185,7 @@ export default function CategoryListPage() {
                 <tr><td colSpan={5} className="px-4 py-16 text-center text-slate-400 text-sm">No services found</td></tr>
               ) : paginated.map((c, i) => (
                 <tr key={c.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
-                  <td className="px-3 py-2 text-center"><input type="checkbox" /></td>
+                  <td className="px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(c.pk)} onChange={() => toggleId(c.pk)} /></td>
                   <td className="px-3 py-2 font-mono text-xs text-slate-600">{c.categoryCode || "-"}</td>
                   <td className="px-3 py-2 font-medium text-slate-800">{c.name}</td>
                   <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "-"}</td>

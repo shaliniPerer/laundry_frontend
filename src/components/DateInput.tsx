@@ -1,5 +1,7 @@
 "use client";
 
+import { Calendar } from "lucide-react";
+
 function toDisplay(iso?: string) {
   if (!iso) return "";
   const p = iso.split("-");
@@ -31,7 +33,9 @@ export function DateInput({ value, onChange, className, wrapperClassName, requir
         placeholder={placeholder}
         id={id}
         className={className}
+        style={{ paddingRight: "2rem" }}
       />
+      <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
       <input
         type="date"
         value={value}

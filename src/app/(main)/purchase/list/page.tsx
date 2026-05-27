@@ -28,6 +28,7 @@ export default function PurchaseListPage() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [_openActionId, setOpenActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -59,6 +60,24 @@ export default function PurchaseListPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const allPageSelected = paginated.length > 0 && paginated.every(p => selectedIds.has(p.pk));
+  function toggleAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) paginated.forEach(p => next.delete(p.pk));
+      else paginated.forEach(p => next.add(p.pk));
+      return next;
+    });
+  }
+  function toggleId(pk: string) {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(pk) ? next.delete(pk) : next.add(pk); return next; });
+  }
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} selected purchase(s)? This cannot be undone.`)) return;
+    for (const pk of selectedIds) await api(`/api/purchases/${pk.replace("PURCHASE#", "")}`, { method: "DELETE" });
+    setSelectedIds(new Set());
+    loadData();
+  }
 
   const stats = useMemo(() => {
     const totalInvoices = purchases.length;
@@ -187,6 +206,11 @@ export default function PurchaseListPage() {
                 {b.label}
               </button>
             ))}
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
             <div className="flex items-center gap-1 ml-1">
               <span className="text-sm text-slate-600">Search:</span>
               <input
@@ -204,7 +228,7 @@ export default function PurchaseListPage() {
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8">
-                  <input type="checkbox" className="rounded" />
+                  <input type="checkbox" className="rounded" checked={allPageSelected} onChange={toggleAll} />
                 </th>
                 {[
                   ["Purchase Date", "text-left"],
@@ -244,7 +268,7 @@ export default function PurchaseListPage() {
                       className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}
                     >
                       <td className="px-3 py-2 text-center">
-                        <input type="checkbox" className="rounded" />
+                        <input type="checkbox" className="rounded" checked={selectedIds.has(p.pk)} onChange={() => toggleId(p.pk)} />
                       </td>
                       <td className="px-3 py-2 text-slate-600">{p.purchaseDate ? (() => { const pts = p.purchaseDate!.split("-"); return pts.length === 3 && pts[0].length === 4 ? `${pts[2]}-${pts[1]}-${pts[0]}` : p.purchaseDate; })() : "—"}</td>
                       <td className="px-3 py-2 font-mono text-xs text-slate-700">{p.purchaseCode || "—"}</td>

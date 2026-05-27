@@ -34,6 +34,7 @@ export default function NewExpensePage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!expenseFor.trim()) { setMsg({ type: "err", text: "Expense For is required" }); return; }
     if (!amount) { setMsg({ type: "err", text: "Amount is required" }); return; }
     setMsg(null);
     setSaving(true);

@@ -29,7 +29,6 @@ const groups: NavGroup[] = [
       { href: "/sales/pos",          label: "POS" },
       { href: "/sales/list",         label: "Sales List" },
       { href: "/sales/holds",        label: "Hold Orders" },
-      { href: "/sales/returns/list", label: "Sales Return List" },
     ],
   },
   {
@@ -51,7 +50,7 @@ const groups: NavGroup[] = [
       { href: "/items/categories/list", label: "Services List" },
       { href: "/items/brands/new",      label: "New Laundry Type" },
       { href: "/items/brands/list",     label: "Laundry Types List" },
-      { href: "/items/labels",          label: "Print Labels" },
+      // { href: "/items/labels",          label: "Print Labels" },
       { href: "/items/import",          label: "Import Items" },
     ],
   },
@@ -70,20 +69,21 @@ const groups: NavGroup[] = [
     icon: <BarChart3 className="w-4 h-4" />,
     items: [
       { href: "/reports/item-sales",     label: "Item Sales Report" },
-      { href: "/reports/item-purchase",  label: "Item Purchase Report" },
       { href: "/reports/sales",          label: "Sales Report" },
-      { href: "/reports/sales-return",   label: "Sales Return Report" },
       { href: "/reports/sales-payments", label: "Sales Payments Report" },
       { href: "/reports/expense",        label: "Expense Report" },
+      { href: "/reports/other-charges",  label: "Other Charges Report" },
     ],
   },
   {
     title: "SMS",
     icon: <MessageSquare className="w-4 h-4" />,
     items: [
-      { href: "/sms",           label: "Send SMS" },
-      { href: "/sms/templates", label: "SMS Templates" },
-      { href: "/sms/log",       label: "SMS Log" },
+      { href: "/sms/log",       label: "Message Log"       },
+      { href: "/sms/customers", label: "Customer Sync"    },
+      { href: "/sms/events",    label: "Event Manager"    },
+      { href: "/sms/templates", label: "Templates"         },
+      { href: "/sms/birthdays", label: "Customer Birthday" },
     ],
   },
   {

@@ -15,6 +15,7 @@ export type ReportFilter = {
   placeholder?: string;
   options?: string[];
   fetchOptions?: () => Promise<string[]>;
+  defaultValue?: string;
 };
 
 type ReportRow = Record<string, string | number | undefined>;
@@ -38,7 +39,11 @@ export function StandardReportLayout({
 
   const initForm: Record<string, string> = {};
   for (const f of filters) {
-    initForm[f.key] = f.type === "date" ? todayISO() : (f.options?.[0] ?? "");
+    if (f.defaultValue !== undefined) {
+      initForm[f.key] = f.defaultValue;
+    } else {
+      initForm[f.key] = f.type === "date" ? todayISO() : (f.options?.[0] ?? "");
+    }
   }
 
   const [form, setForm] = useState<Record<string, string>>(initForm);
@@ -52,9 +57,15 @@ export function StandardReportLayout({
     for (const f of filters) {
       if (f.fetchOptions) {
         f.fetchOptions().then((opts) => {
-          const withAll = ["-All-", ...opts.filter(Boolean).sort()];
-          setDynOptions((prev) => ({ ...prev, [f.key]: withAll }));
-          setForm((prev) => ({ ...prev, [f.key]: prev[f.key] || "-All-" }));
+          const sorted = opts.filter(Boolean).sort();
+          if (f.type === "select") {
+            const withAll = ["-All-", ...sorted];
+            setDynOptions((prev) => ({ ...prev, [f.key]: withAll }));
+            setForm((prev) => ({ ...prev, [f.key]: prev[f.key] || "-All-" }));
+          } else {
+            // text with fetchOptions — populate datalist only, don't override form value
+            setDynOptions((prev) => ({ ...prev, [f.key]: sorted }));
+          }
         });
       }
     }
@@ -72,7 +83,7 @@ export function StandardReportLayout({
 
   function downloadCSV() {
     const header = columns.map((c) => c.label).join(",");
-    const rowsText = rows.map((r) => columns.map((c) => `"${r[c.key] ?? ""}"`).join(",")).join("\n");
+    const rowsText = rows.map((r) => columns.map((c) => `"${String(r[c.key] ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([[header, rowsText].join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -80,6 +91,44 @@ export function StandardReportLayout({
     a.download = `${title.replace(/\s+/g, "_").toLowerCase()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadExcel() {
+    const header = columns.map((c) => `<th>${c.label}</th>`).join("");
+    const body = rows.map((_, i) =>
+      `<tr><td>${i + 1}</td>${columns.map((c) => `<td>${rows[i][c.key] ?? ""}</td>`).join("")}</tr>`
+    ).join("");
+    const html = `<html><head><meta charset="UTF-8"></head><body><table><thead><tr><th>#</th>${header}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=UTF-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/\s+/g, "_").toLowerCase()}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadPDF() {
+    const header = columns.map((c) => `<th style="border:1px solid #999;padding:6px 10px;background:#1d4ed8;color:#fff;white-space:nowrap;font-size:11px">${c.label}</th>`).join("");
+    const body = rows.map((_, i) =>
+      `<tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}">${[String(i + 1), ...columns.map((c) => String(rows[i][c.key] ?? ""))].map((v) => `<td style="border:1px solid #ddd;padding:4px 8px;font-size:11px">${v}</td>`).join("")}</tr>`
+    ).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;margin:16px}h2{margin:0 0 12px;font-size:14px}table{border-collapse:collapse;width:100%}@media print{body{margin:8px}}</style>
+      </head><body><h2>${title}</h2>
+      <table><thead><tr><th style="border:1px solid #999;padding:6px 10px;background:#1d4ed8;color:#fff;font-size:11px">#</th>${header}</tr></thead><tbody>${body}</tbody></table>
+      </body></html>`;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 400);
+  }
+
+  function copyToClipboard() {
+    const header = columns.map((c) => c.label).join("\t");
+    const body = rows.map((r) => columns.map((c) => r[c.key] ?? "").join("\t")).join("\n");
+    navigator.clipboard.writeText([header, body].join("\n"));
   }
 
   function renderField(f: ReportFilter) {
@@ -114,16 +163,24 @@ export function StandardReportLayout({
         </div>
       );
     }
+    const textSuggestions = f.fetchOptions ? (dynOptions[f.key] ?? []) : [];
+    const listId = textSuggestions.length > 0 ? `dl-${f.key}` : undefined;
     return (
       <div className="relative flex-1">
         <input
           value={form[f.key]}
           onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
           placeholder={f.placeholder}
+          list={listId}
           className={`${inputCls} ${f.placeholder ? "pr-8" : ""}`}
         />
         {f.placeholder && (
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        )}
+        {listId && (
+          <datalist id={listId}>
+            {textSuggestions.map((s) => <option key={s} value={s} />)}
+          </datalist>
         )}
       </div>
     );
@@ -142,17 +199,17 @@ export function StandardReportLayout({
         <form onSubmit={handleShow}>
           <div className="space-y-3 max-w-5xl">
             {pairs.map(([left, right], idx) => (
-              <div key={idx} className="grid grid-cols-2 gap-x-12">
-                <div className="flex items-center">
-                  <label className="w-36 text-right pr-4 text-sm text-slate-600 shrink-0">{left.label}</label>
+              <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-x-12">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                  <label className="text-sm text-slate-600 sm:w-36 sm:text-right sm:pr-4 sm:shrink-0">{left.label}</label>
                   {renderField(left)}
                 </div>
                 {right ? (
-                  <div className="flex items-center">
-                    <label className="w-36 text-right pr-4 text-sm text-slate-600 shrink-0">{right.label}</label>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                    <label className="text-sm text-slate-600 sm:w-36 sm:text-right sm:pr-4 sm:shrink-0">{right.label}</label>
                     {renderField(right)}
                   </div>
-                ) : <div />}
+                ) : <div className="hidden sm:block" />}
               </div>
             ))}
           </div>
@@ -178,12 +235,25 @@ export function StandardReportLayout({
       <div className="bg-white border border-slate-200 rounded-sm">
         <div className="px-4 py-3 flex items-center justify-between border-b border-slate-200">
           <h3 className="text-sm font-semibold text-slate-700">Records Table</h3>
-          <button
-            onClick={downloadCSV}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-1.5 rounded inline-flex items-center gap-1.5 transition-colors"
-          >
-            ≡ Export ▾
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={copyToClipboard}
+              className="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+              title="Copy to clipboard"
+            >Copy</button>
+            <button
+              onClick={downloadCSV}
+              className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+            >CSV</button>
+            <button
+              onClick={downloadExcel}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+            >Excel</button>
+            <button
+              onClick={downloadPDF}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+            >PDF</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
