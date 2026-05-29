@@ -409,8 +409,8 @@ export default function DashboardPage() {
     {
       label: "Total Customers",
       value: stats?.totalCustomers ?? 0,
-      gradient: "from-amber-50 to-amber-100/60",
-      iconBg: "bg-amber-500",
+      gradient: "from-cyan-50 to-cyan-100/60",
+      iconBg: "bg-cyan-500",
       Icon: Users,
     },
     {
@@ -447,15 +447,15 @@ export default function DashboardPage() {
     {
       label: "Total Received Amount",
       value: `LKR ${totalReceivedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      gradient: "from-amber-50 to-amber-100/60",
-      iconBg: "bg-amber-500",
+      gradient: "from-cyan-50 to-cyan-100/60",
+      iconBg: "bg-cyan-500",
       Icon: Banknote,
     },
     {
       label: "Total Sales Due",
       value: `LKR ${totalDueAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      gradient: "from-red-50 to-red-100/60",
-      iconBg: "bg-red-500",
+      gradient: "from-green-50 to-green-100/60",
+      iconBg: "bg-green-600",
       Icon: RotateCcw,
     },
   ];
