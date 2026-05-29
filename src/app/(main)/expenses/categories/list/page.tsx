@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
@@ -21,6 +21,15 @@ export default function ExpenseCategoryListPage() {
   const [editForm, setEditForm] = useState<Partial<Category>>({});
   const [editSaving, setEditSaving] = useState(false);
 
+  const EXP_CAT_COLS = ["Category Name", "Description", "Status"];
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  const vis = (col: string) => !hiddenCols.has(col);
+  function toggleCol(col: string) {
+    setHiddenCols(prev => { const next = new Set(prev); next.has(col) ? next.delete(col) : next.add(col); return next; });
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await api<{ categories: Category[] }>("/api/expenses/categories/list");
@@ -29,6 +38,14 @@ export default function ExpenseCategoryListPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) setShowColPicker(false);
+    }
+    if (showColPicker) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showColPicker]);
 
   useEffect(() => {
     function handler() { setOpenActionId(null); }
@@ -97,6 +114,40 @@ export default function ExpenseCategoryListPage() {
     URL.revokeObjectURL(url);
   }
 
+  function xmlEsc(s: string) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function downloadExcel() {
+    const cols = EXP_CAT_COLS.filter(vis);
+    let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="ExpenseCategories"><Table>`;
+    xml += `<Row>${cols.map(c => `<Cell><Data ss:Type="String">${xmlEsc(c)}</Data></Cell>`).join("")}</Row>`;
+    filtered.forEach(c => {
+      xml += `<Row>`;
+      if (vis("Category Name")) xml += `<Cell><Data ss:Type="String">${xmlEsc(c.name)}</Data></Cell>`;
+      if (vis("Description")) xml += `<Cell><Data ss:Type="String">${xmlEsc(c.description||"")}</Data></Cell>`;
+      if (vis("Status")) xml += `<Cell><Data ss:Type="String">${xmlEsc(c.status||"active")}</Data></Cell>`;
+      xml += `</Row>`;
+    });
+    xml += `</Table></Worksheet></Workbook>`;
+    const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "expense_categories.xls"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printTable() {
+    const cols = EXP_CAT_COLS.filter(vis);
+    const rows = filtered.map(c => {
+      const cells: string[] = [];
+      if (vis("Category Name")) cells.push(c.name);
+      if (vis("Description")) cells.push(c.description||"");
+      if (vis("Status")) cells.push(c.status||"active");
+      return cells;
+    });
+    const html = `<!DOCTYPE html><html><head><title>Expense Categories</title><style>body{font-family:sans-serif;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#1d4ed8;color:#fff}</style></head><body><h2 style="margin-bottom:8px">Expense Category List</h2><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  }
+
   const pageButtons = useMemo(() => {
     const start = Math.max(1, Math.min(page - 2, totalPages - 4));
     return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
@@ -119,10 +170,23 @@ export default function ExpenseCategoryListPage() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ label: "Copy", fn: () => navigator.clipboard.writeText(filtered.map((c) => c.name).join("\n")) },
-              { label: "Excel", fn: () => {} }, { label: "PDF", fn: () => {} },
-              { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }, { label: "Columns", fn: () => {} }].map((btn) => (
+              { label: "Excel", fn: downloadExcel }, { label: "PDF", fn: printTable },
+              { label: "Print", fn: printTable }, { label: "CSV", fn: downloadCSV }].map((btn) => (
               <button key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
             ))}
+            <div className="relative" ref={colPickerRef}>
+              <button onClick={() => setShowColPicker(p => !p)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">Columns</button>
+              {showColPicker && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-20 py-1 min-w-36">
+                  {EXP_CAT_COLS.map(col => (
+                    <label key={col} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50">
+                      <input type="checkbox" checked={vis(col)} onChange={() => toggleCol(col)} className="accent-teal-600" />
+                      {col}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             {selectedIds.size > 0 && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
@@ -140,9 +204,10 @@ export default function ExpenseCategoryListPage() {
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allPageSelected} onChange={toggleAll} /></th>
-                {["Category Name", "Description", "Status", "Action"].map((h) => (
-                  <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
-                ))}
+                {vis("Category Name") && <th className="px-3 py-2.5 font-semibold text-left">Category Name</th>}
+                {vis("Description") && <th className="px-3 py-2.5 font-semibold text-left">Description</th>}
+                {vis("Status") && <th className="px-3 py-2.5 font-semibold text-left">Status</th>}
+                <th className="px-3 py-2.5 font-semibold text-left">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -153,11 +218,11 @@ export default function ExpenseCategoryListPage() {
               ) : paginated.map((c, i) => (
                 <tr key={c.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
                   <td className="px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(c.pk)} onChange={() => toggleId(c.pk)} /></td>
-                  <td className="px-3 py-2 font-medium text-slate-800">{c.name}</td>
-                  <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "—"}</td>
-                  <td className="px-3 py-2">
+                  {vis("Category Name") && <td className="px-3 py-2 font-medium text-slate-800">{c.name}</td>}
+                  {vis("Description") && <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "—"}</td>}
+                  {vis("Status") && <td className="px-3 py-2">
                     <span className="bg-green-500 text-white text-xs font-semibold px-2.5 py-0.5 rounded">{(c.status || "active") === "active" ? "Active" : c.status}</span>
-                  </td>
+                  </td>}
                   <td className="px-3 py-2">
                     <DropdownMenu>
                       <button onClick={() => openEdit(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>

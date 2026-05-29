@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
@@ -53,6 +53,15 @@ export default function ExpenseListPage() {
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
   const [editSaving, setEditSaving] = useState(false);
 
+  const EXPENSE_COLS = ["Date", "Category", "Reference No.", "Expense for", "Amount", "Note", "Attachment", "Created by"];
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  const vis = (col: string) => !hiddenCols.has(col);
+  function toggleCol(col: string) {
+    setHiddenCols(prev => { const next = new Set(prev); next.has(col) ? next.delete(col) : next.add(col); return next; });
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     const [expRes, catRes] = await Promise.all([
@@ -65,6 +74,14 @@ export default function ExpenseListPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    function handleClickOutside(ev: MouseEvent) {
+      if (colPickerRef.current && !colPickerRef.current.contains(ev.target as Node)) setShowColPicker(false);
+    }
+    if (showColPicker) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showColPicker]);
 
   useEffect(() => {
     function handler() { setOpenActionId(null); }
@@ -155,6 +172,50 @@ export default function ExpenseListPage() {
     URL.revokeObjectURL(url);
   }
 
+  function xmlEsc(s: string) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function downloadExcel() {
+    const cols = EXPENSE_COLS.filter(vis);
+    let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Expenses"><Table>`;
+    xml += `<Row>${cols.map(c => `<Cell><Data ss:Type="String">${xmlEsc(c)}</Data></Cell>`).join("")}</Row>`;
+    filtered.forEach(e => {
+      xml += `<Row>`;
+      if (vis("Date")) xml += `<Cell><Data ss:Type="String">${xmlEsc(fmtDate(e.date))}</Data></Cell>`;
+      if (vis("Category")) xml += `<Cell><Data ss:Type="String">${xmlEsc(catMap[e.categoryId||""]||e.categoryName||"")}</Data></Cell>`;
+      if (vis("Reference No.")) xml += `<Cell><Data ss:Type="String">${xmlEsc(e.referenceNo||"")}</Data></Cell>`;
+      if (vis("Expense for")) xml += `<Cell><Data ss:Type="String">${xmlEsc(e.expenseFor||"")}</Data></Cell>`;
+      if (vis("Amount")) xml += `<Cell><Data ss:Type="Number">${Number(e.amount??0).toFixed(2)}</Data></Cell>`;
+      if (vis("Note")) xml += `<Cell><Data ss:Type="String">${xmlEsc(e.note||"")}</Data></Cell>`;
+      if (vis("Attachment")) xml += `<Cell><Data ss:Type="String">${xmlEsc(e.attachment?.fileName||"")}</Data></Cell>`;
+      if (vis("Created by")) xml += `<Cell><Data ss:Type="String">${xmlEsc(e.createdBy||"")}</Data></Cell>`;
+      xml += `</Row>`;
+    });
+    xml += `</Table></Worksheet></Workbook>`;
+    const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "expenses.xls"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadPDF() {
+    const cols = EXPENSE_COLS.filter(vis);
+    const rows = filtered.map(e => {
+      const cells: string[] = [];
+      if (vis("Date")) cells.push(fmtDate(e.date));
+      if (vis("Category")) cells.push(catMap[e.categoryId||""]||e.categoryName||"");
+      if (vis("Reference No.")) cells.push(e.referenceNo||"");
+      if (vis("Expense for")) cells.push(e.expenseFor||"");
+      if (vis("Amount")) cells.push(Number(e.amount??0).toFixed(2));
+      if (vis("Note")) cells.push(e.note||"");
+      if (vis("Attachment")) cells.push(e.attachment?.fileName||"");
+      if (vis("Created by")) cells.push(e.createdBy||"");
+      return cells;
+    });
+    const html = `<!DOCTYPE html><html><head><title>Expenses</title><style>body{font-family:sans-serif;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#1d4ed8;color:#fff}</style></head><body><h2 style="margin-bottom:8px">Expenses List</h2><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  }
+
   const pageButtons = useMemo(() => {
     const start = Math.max(1, Math.min(page - 2, totalPages - 4));
     return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
@@ -177,10 +238,23 @@ export default function ExpenseListPage() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ label: "Copy", fn: () => navigator.clipboard.writeText(filtered.map((e) => `${fmtDate(e.date)}\t${e.expenseFor}\t${e.amount}`).join("\n")) },
-              { label: "Excel", fn: () => {} }, { label: "PDF", fn: () => {} },
-              { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }, { label: "Columns", fn: () => {} }].map((btn) => (
+              { label: "Excel", fn: downloadExcel }, { label: "PDF", fn: downloadPDF },
+              { label: "Print", fn: downloadPDF }, { label: "CSV", fn: downloadCSV }].map((btn) => (
               <button key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
             ))}
+            <div className="relative" ref={colPickerRef}>
+              <button onClick={() => setShowColPicker(p => !p)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">Columns</button>
+              {showColPicker && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-20 py-1 min-w-44">
+                  {EXPENSE_COLS.map(col => (
+                    <label key={col} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50">
+                      <input type="checkbox" checked={vis(col)} onChange={() => toggleCol(col)} className="accent-teal-600" />
+                      {col}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             {selectedIds.size > 0 && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
@@ -198,9 +272,15 @@ export default function ExpenseListPage() {
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allPageSelected} onChange={toggleAll} /></th>
-                {["Date", "Category", "Reference No.", "Expense for", "Amount", "Note", "Attachment", "Created by", "Action"].map((h) => (
-                  <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
-                ))}
+                {vis("Date") && <th className="px-3 py-2.5 font-semibold text-left">Date</th>}
+                {vis("Category") && <th className="px-3 py-2.5 font-semibold text-left">Category</th>}
+                {vis("Reference No.") && <th className="px-3 py-2.5 font-semibold text-left">Reference No.</th>}
+                {vis("Expense for") && <th className="px-3 py-2.5 font-semibold text-left">Expense for</th>}
+                {vis("Amount") && <th className="px-3 py-2.5 font-semibold text-left">Amount</th>}
+                {vis("Note") && <th className="px-3 py-2.5 font-semibold text-left">Note</th>}
+                {vis("Attachment") && <th className="px-3 py-2.5 font-semibold text-left">Attachment</th>}
+                {vis("Created by") && <th className="px-3 py-2.5 font-semibold text-left">Created by</th>}
+                <th className="px-3 py-2.5 font-semibold text-left">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -211,20 +291,20 @@ export default function ExpenseListPage() {
               ) : paginated.map((e, i) => (
                 <tr key={e.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
                   <td className="px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(e.pk)} onChange={() => toggleId(e.pk)} /></td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
-                  <td className="px-3 py-2 text-slate-700">{catMap[e.categoryId || ""] || e.categoryName || "—"}</td>
-                  <td className="px-3 py-2 text-slate-500 text-xs">{e.referenceNo || ""}</td>
-                  <td className="px-3 py-2 text-slate-700">{e.expenseFor || "—"}</td>
-                  <td className="px-3 py-2 font-medium text-slate-800">{Number(e.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-3 py-2 text-slate-500 text-xs max-w-xs truncate">{e.note || ""}</td>
-                  <td className="px-3 py-2 text-xs">
+                  {vis("Date") && <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>}
+                  {vis("Category") && <td className="px-3 py-2 text-slate-700">{catMap[e.categoryId || ""] || e.categoryName || "—"}</td>}
+                  {vis("Reference No.") && <td className="px-3 py-2 text-slate-500 text-xs">{e.referenceNo || ""}</td>}
+                  {vis("Expense for") && <td className="px-3 py-2 text-slate-700">{e.expenseFor || "—"}</td>}
+                  {vis("Amount") && <td className="px-3 py-2 font-medium text-slate-800">{Number(e.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>}
+                  {vis("Note") && <td className="px-3 py-2 text-slate-500 text-xs max-w-xs truncate">{e.note || ""}</td>}
+                  {vis("Attachment") && <td className="px-3 py-2 text-xs">
                     {e.attachment?.url ? (
                       <a href={attachmentHref(e.attachment.url)} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
                         {e.attachment.fileName || "Open file"}
                       </a>
                     ) : "-"}
-                  </td>
-                  <td className="px-3 py-2 text-slate-500 text-xs">{e.createdBy || ""}</td>
+                  </td>}
+                  {vis("Created by") && <td className="px-3 py-2 text-slate-500 text-xs">{e.createdBy || ""}</td>}
                   <td className="px-3 py-2">
                     <DropdownMenu>
                       <button onClick={() => openEdit(e)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
@@ -237,9 +317,9 @@ export default function ExpenseListPage() {
             {!loading && filtered.length > 0 && (
               <tfoot>
                 <tr className="bg-slate-100 border-t-2 border-slate-300">
-                  <td colSpan={5} className="px-3 py-2.5 text-right font-semibold text-slate-700 text-sm">Total</td>
-                  <td className="px-3 py-2.5 font-bold text-slate-800">{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                  <td colSpan={4} />
+                  <td colSpan={1 + ["Date", "Category", "Reference No.", "Expense for"].filter(vis).length} className="px-3 py-2.5 text-right font-semibold text-slate-700 text-sm">Total</td>
+                  {vis("Amount") && <td className="px-3 py-2.5 font-bold text-slate-800">{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>}
+                  <td colSpan={["Note", "Attachment", "Created by"].filter(vis).length + 1} />
                 </tr>
               </tfoot>
             )}

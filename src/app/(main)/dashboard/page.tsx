@@ -7,9 +7,14 @@ import {
   CheckCircle2,
   Loader2,
   Package,
+  Receipt,
   Search,
   Shirt,
   ThumbsUp,
+  Users,
+  Plus,
+  RotateCcw,
+  Banknote,
 } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { api } from "@/lib/api";
@@ -40,6 +45,8 @@ type Stats = {
   paymentCounts: { not_paid: number; partially_paid: number; fully_paid: number };
   monthlyData: { month: string; revenue: number; expenses: number }[];
   monthlySales: { month: string; total: number }[];
+  totalCustomers?: number;
+  totalExpensesAmount?: number;
 };
 
 type OverviewRangeType = "today" | "this_week" | "this_month" | "custom";
@@ -395,6 +402,51 @@ export default function DashboardPage() {
       iconBg: "bg-green-500",
       Icon: CheckCircle2,
     },
+    {
+      label: "Total Customers",
+      value: stats?.totalCustomers ?? 0,
+      gradient: "from-amber-50 to-amber-100/60",
+      iconBg: "bg-amber-500",
+      Icon: Users,
+    },
+    {
+      label: "Total Expenses",
+      value: `LKR ${(stats?.totalExpensesAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      gradient: "from-rose-50 to-rose-100/60",
+      iconBg: "bg-rose-500",
+      Icon: Receipt,
+    },
+  ];
+
+  const summaryCards = [
+    {
+      label: "Total Invoices",
+      value: 40, // Replace with real value if available
+      gradient: "from-cyan-50 to-cyan-100/60",
+      iconBg: "bg-cyan-500",
+      Icon: Package,
+    },
+    {
+      label: "Total Invoices Amount",
+      value: `LKR 51,005.54`, // Replace with real value if available
+      gradient: "from-green-50 to-green-100/60",
+      iconBg: "bg-green-600",
+      Icon: Plus,
+    },
+    {
+      label: "Total Received Amount",
+      value: `LKR 40,589.93`, // Replace with real value if available
+      gradient: "from-amber-50 to-amber-100/60",
+      iconBg: "bg-amber-500",
+      Icon: Banknote,
+    },
+    {
+      label: "Total Sales Due",
+      value: `LKR 10,415.61`, // Replace with real value if available
+      gradient: "from-red-50 to-red-100/60",
+      iconBg: "bg-red-500",
+      Icon: RotateCcw,
+    },
   ];
 
   const statusBars = [
@@ -473,39 +525,25 @@ export default function DashboardPage() {
 
     <PageScaffold title="Dashboard" subtitle="">
       <div className="space-y-6">
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={() => router.push('sales/pos')}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            + New Sales
-          </button>
-        </div>
+        
 
-
-        {/* ── Stat cards ── */}
+        {/* ── Stat cards (status) ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map(({ label, value, gradient, iconBg, Icon }) => (
+          {statCards.slice(0, 4).map(({ label, value, gradient, iconBg, Icon }) => (
             <div
               key={label}
               className={`bg-linear-to-br ${gradient} rounded-2xl p-3 sm:p-5 flex items-center justify-between border border-white/80 shadow-sm`}
             >
               <div>
                 <p className="text-xs sm:text-sm text-slate-500">{label}</p>
-                <p className="text-2xl sm:text-4xl font-bold text-slate-800 mt-1">
-                  {value}
-                </p>
+                <p className="text-2xl sm:text-4xl font-bold text-slate-800 mt-1">{value}</p>
               </div>
-
-              <div
-                className={`w-10 h-10 sm:w-14 sm:h-14 ${iconBg} rounded-full flex items-center justify-center shadow-md`}
-              >
+              <div className={`w-10 h-10 sm:w-14 sm:h-14 ${iconBg} rounded-full flex items-center justify-center shadow-md`}>
                 <Icon className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
               </div>
             </div>
           ))}
         </div>
-
 
         {/* ── Today's Delivery ── */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -568,6 +606,29 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+
+
+        {/* ── Summary cards (totals) ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4">
+          {[
+            ...summaryCards, // 4 cards
+            statCards[4],    // Total Customers
+            statCards[5],    // Total Expenses
+          ].map(({ label, value, gradient, iconBg, Icon }) => (
+            <div
+              key={label}
+              className={`bg-linear-to-br ${gradient} rounded-2xl p-3 sm:p-5 flex items-center justify-between border border-white/80 shadow-sm`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-slate-500">{label}</p>
+                <p className={`font-bold text-slate-800 mt-1 ${typeof value === "string" ? "text-lg sm:text-2xl" : "text-2xl sm:text-4xl"}`}>{value}</p>
+              </div>
+              <div className={`w-10 h-10 sm:w-14 sm:h-14 ${iconBg} rounded-full flex items-center justify-center shadow-md ml-3 shrink-0`}>
+                <Icon className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* ── Charts row ── */}

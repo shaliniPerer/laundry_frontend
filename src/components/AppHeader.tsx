@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Moon, Sun, UserCircle } from "lucide-react";
+import { LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
 import { setToken } from "@/lib/api";
 import { useTheme } from "./ThemeProvider";
 
@@ -107,6 +107,14 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <Link
+            href="/sales/pos"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-sm font-bold transition-colors hover:opacity-90 active:scale-95"
+            style={{ background: "#16a34a", color: "white", borderColor: "#16a34a" }}
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Sale</span>
+          </Link>
           <button
             type="button"
             onClick={toggle}

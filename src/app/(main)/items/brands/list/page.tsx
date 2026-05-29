@@ -27,6 +27,15 @@ export default function BrandListPage() {
   const [editSaving, setEditSaving] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
 
+  const BRAND_COLS = ["Laundry Type Code", "Laundry Type Name", "Description"];
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  const vis = (col: string) => !hiddenCols.has(col);
+  function toggleCol(col: string) {
+    setHiddenCols(prev => { const next = new Set(prev); next.has(col) ? next.delete(col) : next.add(col); return next; });
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await api<{ brands: Brand[] }>("/api/items/brands");
@@ -48,6 +57,14 @@ export default function BrandListPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) setShowColPicker(false);
+    }
+    if (showColPicker) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showColPicker]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -128,6 +145,40 @@ export default function BrandListPage() {
     URL.revokeObjectURL(url);
   }
 
+  function xmlEsc(s: string) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function downloadExcel() {
+    const cols = BRAND_COLS.filter(vis);
+    let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="LaundryTypes"><Table>`;
+    xml += `<Row>${cols.map(c => `<Cell><Data ss:Type="String">${xmlEsc(c)}</Data></Cell>`).join("")}</Row>`;
+    filtered.forEach(b => {
+      xml += `<Row>`;
+      if (vis("Laundry Type Code")) xml += `<Cell><Data ss:Type="String">${xmlEsc(b.brandCode||"")}</Data></Cell>`;
+      if (vis("Laundry Type Name")) xml += `<Cell><Data ss:Type="String">${xmlEsc(b.name)}</Data></Cell>`;
+      if (vis("Description")) xml += `<Cell><Data ss:Type="String">${xmlEsc(b.description||"")}</Data></Cell>`;
+      xml += `</Row>`;
+    });
+    xml += `</Table></Worksheet></Workbook>`;
+    const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "laundry_types.xls"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printTable() {
+    const cols = BRAND_COLS.filter(vis);
+    const rows = filtered.map(b => {
+      const cells: string[] = [];
+      if (vis("Laundry Type Code")) cells.push(b.brandCode||"");
+      if (vis("Laundry Type Name")) cells.push(b.name);
+      if (vis("Description")) cells.push(b.description||"");
+      return cells;
+    });
+    const html = `<!DOCTYPE html><html><head><title>Laundry Types</title><style>body{font-family:sans-serif;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#1d4ed8;color:#fff}</style></head><body><h2 style="margin-bottom:8px">Laundry Type List</h2><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  }
+
   const pageButtons = useMemo(() => {
     const start = Math.max(1, Math.min(page - 2, totalPages - 4));
     return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
@@ -153,9 +204,23 @@ export default function BrandListPage() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ label: "Copy", fn: () => navigator.clipboard.writeText(filtered.map((b) => `${b.brandCode || ""}\t${b.name}`).join("\n")) },
-              { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }].map((btn) => (
+              { label: "Excel", fn: downloadExcel }, { label: "PDF", fn: printTable },
+              { label: "Print", fn: printTable }, { label: "CSV", fn: downloadCSV }].map((btn) => (
               <button type="button" key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
             ))}
+            <div className="relative" ref={colPickerRef}>
+              <button type="button" onClick={() => setShowColPicker(p => !p)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">Columns</button>
+              {showColPicker && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-20 py-1 min-w-44">
+                  {BRAND_COLS.map(col => (
+                    <label key={col} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50">
+                      <input type="checkbox" checked={vis(col)} onChange={() => toggleCol(col)} className="accent-teal-600" />
+                      {col}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             {selectedIds.size > 0 && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
@@ -173,9 +238,10 @@ export default function BrandListPage() {
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allPageSelected} onChange={toggleAll} /></th>
-                {["Laundry Type Code", "Laundry Type Name", "Description", "Action"].map((h) => (
-                  <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
-                ))}
+                {vis("Laundry Type Code") && <th className="px-3 py-2.5 font-semibold text-left">Laundry Type Code</th>}
+                {vis("Laundry Type Name") && <th className="px-3 py-2.5 font-semibold text-left">Laundry Type Name</th>}
+                {vis("Description") && <th className="px-3 py-2.5 font-semibold text-left">Description</th>}
+                <th className="px-3 py-2.5 font-semibold text-left">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -186,9 +252,9 @@ export default function BrandListPage() {
               ) : paginated.map((b, i) => (
                 <tr key={b.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
                   <td className="px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(b.pk)} onChange={() => toggleId(b.pk)} /></td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-600">{b.brandCode || "-"}</td>
-                  <td className="px-3 py-2 font-medium text-slate-800">{b.name}</td>
-                  <td className="px-3 py-2 text-slate-500 text-xs">{b.description || "-"}</td>
+                  {vis("Laundry Type Code") && <td className="px-3 py-2 font-mono text-xs text-slate-600">{b.brandCode || "-"}</td>}
+                  {vis("Laundry Type Name") && <td className="px-3 py-2 font-medium text-slate-800">{b.name}</td>}
+                  {vis("Description") && <td className="px-3 py-2 text-slate-500 text-xs">{b.description || "-"}</td>}
                   <td className="px-3 py-2">
                     <DropdownMenu>
                       <button type="button" onClick={() => openEdit(b)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>

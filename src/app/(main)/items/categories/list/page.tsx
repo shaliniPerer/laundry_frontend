@@ -27,6 +27,15 @@ export default function CategoryListPage() {
   const [editSaving, setEditSaving] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
 
+  const CAT_COLS = ["Service Code", "Service Name", "Description"];
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  const vis = (col: string) => !hiddenCols.has(col);
+  function toggleCol(col: string) {
+    setHiddenCols(prev => { const next = new Set(prev); next.has(col) ? next.delete(col) : next.add(col); return next; });
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await api<{ categories: Category[] }>("/api/items/categories?kind=item");
@@ -48,6 +57,14 @@ export default function CategoryListPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) setShowColPicker(false);
+    }
+    if (showColPicker) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showColPicker]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -128,6 +145,40 @@ export default function CategoryListPage() {
     URL.revokeObjectURL(url);
   }
 
+  function xmlEsc(s: string) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function downloadExcel() {
+    const cols = CAT_COLS.filter(vis);
+    let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Services"><Table>`;
+    xml += `<Row>${cols.map(c => `<Cell><Data ss:Type="String">${xmlEsc(c)}</Data></Cell>`).join("")}</Row>`;
+    filtered.forEach(c => {
+      xml += `<Row>`;
+      if (vis("Service Code")) xml += `<Cell><Data ss:Type="String">${xmlEsc(c.categoryCode||"")}</Data></Cell>`;
+      if (vis("Service Name")) xml += `<Cell><Data ss:Type="String">${xmlEsc(c.name)}</Data></Cell>`;
+      if (vis("Description")) xml += `<Cell><Data ss:Type="String">${xmlEsc(c.description||"")}</Data></Cell>`;
+      xml += `</Row>`;
+    });
+    xml += `</Table></Worksheet></Workbook>`;
+    const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "services.xls"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printTable() {
+    const cols = CAT_COLS.filter(vis);
+    const rows = filtered.map(c => {
+      const cells: string[] = [];
+      if (vis("Service Code")) cells.push(c.categoryCode||"");
+      if (vis("Service Name")) cells.push(c.name);
+      if (vis("Description")) cells.push(c.description||"");
+      return cells;
+    });
+    const html = `<!DOCTYPE html><html><head><title>Services</title><style>body{font-family:sans-serif;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#1d4ed8;color:#fff}</style></head><body><h2 style="margin-bottom:8px">Service List</h2><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const win = window.open("","_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  }
+
   const pageButtons = useMemo(() => {
     const start = Math.max(1, Math.min(page - 2, totalPages - 4));
     return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
@@ -153,9 +204,23 @@ export default function CategoryListPage() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {[{ label: "Copy", fn: () => navigator.clipboard.writeText(filtered.map((c) => `${c.categoryCode || ""}\t${c.name}`).join("\n")) },
-              { label: "Print", fn: () => window.print() }, { label: "CSV", fn: downloadCSV }].map((btn) => (
+              { label: "Excel", fn: downloadExcel }, { label: "PDF", fn: printTable },
+              { label: "Print", fn: printTable }, { label: "CSV", fn: downloadCSV }].map((btn) => (
               <button type="button" key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
             ))}
+            <div className="relative" ref={colPickerRef}>
+              <button type="button" onClick={() => setShowColPicker(p => !p)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">Columns</button>
+              {showColPicker && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-20 py-1 min-w-36">
+                  {CAT_COLS.map(col => (
+                    <label key={col} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50">
+                      <input type="checkbox" checked={vis(col)} onChange={() => toggleCol(col)} className="accent-teal-600" />
+                      {col}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             {selectedIds.size > 0 && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
@@ -173,9 +238,10 @@ export default function CategoryListPage() {
             <thead>
               <tr className="bg-blue-600 text-white text-xs">
                 <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allPageSelected} onChange={toggleAll} /></th>
-                {["Service Code", "Service Name", "Description", "Action"].map((h) => (
-                  <th key={h} className="px-3 py-2.5 font-semibold text-left">{h}</th>
-                ))}
+                {vis("Service Code") && <th className="px-3 py-2.5 font-semibold text-left">Service Code</th>}
+                {vis("Service Name") && <th className="px-3 py-2.5 font-semibold text-left">Service Name</th>}
+                {vis("Description") && <th className="px-3 py-2.5 font-semibold text-left">Description</th>}
+                <th className="px-3 py-2.5 font-semibold text-left">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -186,9 +252,9 @@ export default function CategoryListPage() {
               ) : paginated.map((c, i) => (
                 <tr key={c.pk} className={`border-t border-slate-100 hover:bg-blue-50/30 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
                   <td className="px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(c.pk)} onChange={() => toggleId(c.pk)} /></td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-600">{c.categoryCode || "-"}</td>
-                  <td className="px-3 py-2 font-medium text-slate-800">{c.name}</td>
-                  <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "-"}</td>
+                  {vis("Service Code") && <td className="px-3 py-2 font-mono text-xs text-slate-600">{c.categoryCode || "-"}</td>}
+                  {vis("Service Name") && <td className="px-3 py-2 font-medium text-slate-800">{c.name}</td>}
+                  {vis("Description") && <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "-"}</td>}
                   <td className="px-3 py-2">
                     <DropdownMenu>
                       <button type="button" onClick={() => openEdit(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>

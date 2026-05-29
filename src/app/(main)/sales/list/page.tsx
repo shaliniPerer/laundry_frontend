@@ -24,8 +24,12 @@ import {
   Banknote,
   Building2,
   MessageSquare,
-  Check,
+  Receipt,
+  UserPlus,
+  TrendingUp,
+  DollarSign,
   Loader2,
+  Check,
 } from "lucide-react";
 
 type MultiPayment = { id: string; type: "Cash" | "Card" | "Bank Transfer"; amount: number; cardLast4?: string; note?: string };
@@ -79,6 +83,7 @@ export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayStats, setTodayStats] = useState<{ todayInvoices: number; todayNewCustomers: number; todaySalesAmount: number; todayReceivedAmount: number; todayExpensesAmount: number } | null>(null);
   const [search, setSearch] = useState("");
   const [customerFilter, setCustomerFilter] = useState(customerFromQuery);
   const [customerSearch, setCustomerSearch] = useState(customerFromQuery);
@@ -108,6 +113,12 @@ export default function SalesListPage() {
   const [viewPayments, setViewPayments] = useState<{ id: string; date: string; paymentType: string; note?: string; amount: number }[]>([]);
   const [viewPayLoading, setViewPayLoading] = useState(false);
 
+  // Edit Payment modal
+  type EditPayForm = { id: string; date: string; paymentType: "Cash" | "Card" | "Bank Transfer"; amount: string; cardLast4: string; note: string };
+  const [editingPayment, setEditingPayment] = useState<EditPayForm | null>(null);
+  const [savingEditPay, setSavingEditPay] = useState(false);
+  const [editPayMsg, setEditPayMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
   async function openViewPaymentsModal(sale: Sale) {
     setViewPaySale(sale);
     setViewPayments([]);
@@ -118,6 +129,55 @@ export default function SalesListPage() {
     setViewPayLoading(false);
   }
 
+  async function handleDeletePayment(paymentId: string) {
+    if (!viewPaySale) return;
+    if (!confirm("Delete this payment? The invoice status will update automatically.")) return;
+    const id = saleId(viewPaySale);
+    const res = await api<{ paidAmount: number; paymentStatus: string }>(`/api/sales/${id}/payments/${paymentId}`, { method: "DELETE" });
+    if (res.ok && res.data) {
+      setViewPayments(prev => prev.filter(p => p.id !== paymentId));
+      setViewPaySale(prev => prev ? { ...prev, paidAmount: res.data!.paidAmount, paymentStatus: res.data!.paymentStatus } : prev);
+      setSales(prev => prev.map(s => saleId(s) === id ? { ...s, paidAmount: res.data!.paidAmount, paymentStatus: res.data!.paymentStatus } : s));
+    }
+  }
+
+  function openEditPayment(p: { id: string; date: string; paymentType: string; note?: string; amount: number }) {
+    const isCard = p.paymentType === "Card";
+    setEditingPayment({
+      id: p.id,
+      date: p.date,
+      paymentType: (["Cash", "Card", "Bank Transfer"].includes(p.paymentType) ? p.paymentType : "Cash") as "Cash" | "Card" | "Bank Transfer",
+      amount: String(p.amount),
+      cardLast4: isCard && p.note ? p.note.replace(/.*\*{4}/, "") : "",
+      note: !isCard ? (p.note ?? "") : "",
+    });
+    setEditPayMsg(null);
+  }
+
+  async function handleSaveEditPayment() {
+    if (!viewPaySale || !editingPayment) return;
+    const amt = parseFloat(editingPayment.amount);
+    if (!editingPayment.amount || isNaN(amt) || amt <= 0) { setEditPayMsg({ type: "err", text: "Enter a valid amount." }); return; }
+    if (editingPayment.paymentType === "Card" && editingPayment.cardLast4.length !== 4) { setEditPayMsg({ type: "err", text: "Enter last 4 digits of card." }); return; }
+    setSavingEditPay(true);
+    setEditPayMsg(null);
+    const id = saleId(viewPaySale);
+    const note = editingPayment.paymentType === "Card" ? `Card ****${editingPayment.cardLast4}` : editingPayment.note;
+    const res = await api<{ paidAmount: number; paymentStatus: string }>(`/api/sales/${id}/payments/${editingPayment.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ amount: amt, paymentType: editingPayment.paymentType, date: editingPayment.date, note }),
+    });
+    setSavingEditPay(false);
+    if (res.ok && res.data) {
+      setViewPayments(prev => prev.map(p => p.id === editingPayment.id ? { ...p, amount: amt, paymentType: editingPayment.paymentType, date: editingPayment.date, note } : p));
+      setViewPaySale(prev => prev ? { ...prev, paidAmount: res.data!.paidAmount, paymentStatus: res.data!.paymentStatus } : prev);
+      setSales(prev => prev.map(s => saleId(s) === id ? { ...s, paidAmount: res.data!.paidAmount, paymentStatus: res.data!.paymentStatus } : s));
+      setEditingPayment(null);
+    } else {
+      setEditPayMsg({ type: "err", text: "Failed to update payment." });
+    }
+  }
+
   const menuRef = useRef<HTMLDivElement>(null);
   const customerRef = useRef<HTMLDivElement>(null);
 
@@ -126,14 +186,16 @@ export default function SalesListPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [sr, cr] = await Promise.all([
+    const [sr, cr, tr] = await Promise.all([
       api<{ sales: Sale[] }>("/api/sales"),
       api<{ customers: Customer[] }>("/api/customers"),
+      api<{ todayInvoices: number; todayNewCustomers: number; todaySalesAmount: number; todayReceivedAmount: number; todayExpensesAmount: number }>("/api/dashboard/today"),
     ]);
     if (sr.ok && sr.data?.sales) {
       setSales(sr.data.sales.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")));
     }
     if (cr.ok && cr.data?.customers) setCustomers(cr.data.customers);
+    if (tr.ok && tr.data) setTodayStats(tr.data);
     setLoading(false);
   }, []);
 
@@ -371,13 +433,29 @@ export default function SalesListPage() {
         }
       `}</style>
     <PageScaffold title="Sales List" subtitle="View/Search Sold Items" maxWidthClassName="max-w-[1400px]">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <SummaryCard icon={<ShoppingBag className="w-10 h-10 opacity-30" />} label="Total Invoices" value={totalInvoices.toString()} color="bg-cyan-500" />
-        <SummaryCard icon={<Plus className="w-10 h-10 opacity-30" />} label="Total Invoices Amount" value={fmt(totalAmount)} color="bg-green-600" />
-        <SummaryCard icon={<RotateCcw className="w-10 h-10 opacity-30" />} label="Total Received Amount" value={fmt(totalReceived)} color="bg-amber-500" />
-        <SummaryCard icon={<ShoppingBag className="w-10 h-10 opacity-30" />} label="Total Sales Due" value={fmt(totalDue)} color="bg-red-500" />
+      {/* Today Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+        {[
+          { label: "Today Invoices", value: todayStats?.todayInvoices ?? 0, iconBg: "bg-cyan-500", Icon: Receipt, gradient: "from-cyan-50 to-cyan-100/60" },
+          { label: "Today New Customers", value: todayStats?.todayNewCustomers ?? 0, iconBg: "bg-purple-500", Icon: UserPlus, gradient: "from-purple-50 to-purple-100/60" },
+          { label: "Today Sales Amount", value: `LKR ${(todayStats?.todaySalesAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, iconBg: "bg-green-500", Icon: TrendingUp, gradient: "from-green-50 to-green-100/60" },
+          { label: "Today Received Amount", value: `LKR ${(todayStats?.todayReceivedAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, iconBg: "bg-cyan-500", Icon: Receipt, gradient: "from-cyan-50 to-cyan-100/60" },
+          { label: "Today Expenses", value: `LKR ${(todayStats?.todayExpensesAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, iconBg: "bg-rose-500", Icon: DollarSign, gradient: "from-rose-50 to-rose-100/60" },
+        ].map(({ label, value, iconBg, Icon, gradient }) => (
+          <div key={label} className={`bg-gradient-to-br ${gradient} rounded-2xl p-3 sm:p-4 flex items-center justify-between border border-white/80 shadow-sm`}>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-slate-500 leading-tight">{label}</p>
+              <p className={`font-bold text-slate-800 mt-1 ${typeof value === "string" ? "text-sm sm:text-base" : "text-2xl sm:text-3xl"}`}>{value}</p>
+            </div>
+            <div className={`w-9 h-9 sm:w-11 sm:h-11 ${iconBg} rounded-full flex items-center justify-center shadow-md ml-2 shrink-0`}>
+              <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+            </div>
+          </div>
+        ))}
       </div>
+
+      {/* Summary Cards */}
+      
 
       <div className="bg-white rounded border border-slate-200 shadow-sm">
         {/* Toolbar */}
@@ -448,13 +526,7 @@ export default function SalesListPage() {
                 className="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 w-full bg-white" />
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => router.push("/sales/pos")}
-            className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors shrink-0"
-          >
-            <Plus className="w-4 h-4" /> New Sales
-          </button>
+         
         </div>
 
         {/* Table controls */}
@@ -665,6 +737,7 @@ export default function SalesListPage() {
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Type</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Note</th>
                       <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">Amount (LKR)</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -681,12 +754,25 @@ export default function SalesListPage() {
                         </td>
                         <td className="px-3 py-2 text-slate-500 text-xs">{p.note ?? "—"}</td>
                         <td className="px-3 py-2 text-right font-semibold">{Number(p.amount).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button type="button" title="Edit payment"
+                              onClick={() => openEditPayment(p)}
+                              className="text-blue-500 hover:text-blue-700 transition-colors">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button type="button" title="Delete payment" onClick={() => handleDeletePayment(p.id)}
+                              className="text-red-400 hover:text-red-600 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="bg-slate-50 border-t border-slate-200">
                     <tr>
-                      <td colSpan={4} className="px-3 py-2 text-sm font-semibold text-slate-700 text-right">Total Paid:</td>
+                      <td colSpan={5} className="px-3 py-2 text-sm font-semibold text-slate-700 text-right">Total Paid:</td>
                       <td className="px-3 py-2 text-right font-bold text-green-600">{viewPayments.reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}</td>
                     </tr>
                   </tfoot>
@@ -708,6 +794,82 @@ export default function SalesListPage() {
               <button type="button" onClick={() => setViewPaySale(null)}
                 className="ml-auto px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded transition-colors">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PAYMENT MODAL */}
+      {editingPayment && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setEditingPayment(null); }}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-lg text-slate-800">Edit Payment</h2>
+              <button type="button" onClick={() => setEditingPayment(null)} className="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">×</button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Payment type */}
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Payment Type</label>
+                <div className="flex gap-2">
+                  {(["Cash", "Card", "Bank Transfer"] as const).map(t => (
+                    <button key={t} type="button"
+                      onClick={() => setEditingPayment(p => p ? { ...p, paymentType: t, cardLast4: "", note: "" } : p)}
+                      className={`flex-1 py-2 rounded text-xs font-semibold border transition-colors flex items-center justify-center gap-1
+                        ${editingPayment.paymentType === t ? "bg-blue-600 text-white border-blue-600" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
+                      {t === "Cash" && <Banknote className="w-3.5 h-3.5" />}
+                      {t === "Card" && <CreditCard className="w-3.5 h-3.5" />}
+                      {t === "Bank Transfer" && <Building2 className="w-3.5 h-3.5" />}
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Date */}
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Date</label>
+                <input type="date" value={editingPayment.date} onChange={e => setEditingPayment(p => p ? { ...p, date: e.target.value } : p)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400" />
+              </div>
+              {/* Amount */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-slate-500 mb-1 block">Amount (LKR)</label>
+                  <input type="number" min={0} step={0.01} value={editingPayment.amount}
+                    onChange={e => setEditingPayment(p => p ? { ...p, amount: e.target.value } : p)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="0.00" />
+                </div>
+                {editingPayment.paymentType === "Card" && (
+                  <div className="w-36">
+                    <label className="text-xs text-slate-500 mb-1 block">Last 4 Digits</label>
+                    <input maxLength={4} value={editingPayment.cardLast4}
+                      onChange={e => setEditingPayment(p => p ? { ...p, cardLast4: e.target.value.replace(/\D/g, "").slice(0, 4) } : p)}
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400 tracking-widest" placeholder="1234" />
+                  </div>
+                )}
+              </div>
+              {editingPayment.paymentType === "Bank Transfer" && (
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Reference / Note</label>
+                  <input value={editingPayment.note} onChange={e => setEditingPayment(p => p ? { ...p, note: e.target.value } : p)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+              )}
+              {editPayMsg && (
+                <div className={`px-3 py-2 rounded text-sm ${editPayMsg.type === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                  {editPayMsg.text}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-200 flex gap-3 shrink-0">
+              <button type="button" onClick={handleSaveEditPayment} disabled={savingEditPay}
+                className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded disabled:opacity-50 transition-colors">
+                {savingEditPay ? "Saving…" : "Save Changes"}
+              </button>
+              <button type="button" onClick={() => setEditingPayment(null)}
+                className="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded transition-colors">
+                Cancel
               </button>
             </div>
           </div>

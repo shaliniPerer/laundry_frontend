@@ -44,14 +44,12 @@ type HeldOrder = {
   savedAt: string;
 };
 
-const COUNTRIES = ["Sri Lanka","India","United Kingdom","United States","Australia","Canada","Singapore","Malaysia","Other"];
-
 type NewCustomerForm = {
-  name: string; mobile: string; email: string; phone: string;
-  country: string; city: string; address: string; dob: string;
+  salutation: string; firstName: string; lastName: string;
+  mobile: string; email: string; address: string; dob: string;
 };
 
-const INITIAL_NEW_CUST: NewCustomerForm = { name: "", mobile: "", email: "", phone: "", country: "Sri Lanka", city: "", address: "", dob: "" };
+const INITIAL_NEW_CUST: NewCustomerForm = { salutation: "Mr", firstName: "", lastName: "", mobile: "", email: "", address: "", dob: "" };
 
 const WALK_IN: Customer = { pk: "", name: "Walk-in Customer" };
 const HOLD_KEY = "pos_held_orders";
@@ -282,7 +280,7 @@ function PosInner() {
     ? Math.max(0, totalAmount - totalDiscount) * posDiscount / 100
     : posDiscount;
   const otherCharges = otherChargeItems.reduce((s, c) => s + c.amount, 0);
-  const grandTotal = totalAmount - totalDiscount - posDiscountAmount + otherCharges;
+  const grandTotal = Math.ceil(totalAmount - totalDiscount - posDiscountAmount + otherCharges);
   const multiTotalPaid = multiPayments.reduce((s, p) => s + p.amount, 0);
   const balance = grandTotal - previouslyPaid - multiTotalPaid;
 
@@ -356,9 +354,20 @@ function PosInner() {
     e.preventDefault();
     setNewCustMsg(null);
     setSavingNewCust(true);
+    const custName = [newCustForm.salutation, newCustForm.firstName, newCustForm.lastName].filter(Boolean).join(" ");
     const res = await api<{ id: string; pk: string; name: string; mobile?: string; phone?: string; discountType?: "percentage" | "fixed"; discount?: number }>("/api/customers", {
       method: "POST",
-      body: JSON.stringify({ ...newCustForm, status: "active" }),
+      body: JSON.stringify({
+        salutation: newCustForm.salutation,
+        firstName: newCustForm.firstName,
+        lastName: newCustForm.lastName,
+        name: custName,
+        mobile: newCustForm.mobile || undefined,
+        email: newCustForm.email || undefined,
+        address: newCustForm.address || undefined,
+        dob: newCustForm.dob || undefined,
+        status: "active",
+      }),
     });
     setSavingNewCust(false);
     if (!res.ok) {
@@ -1005,8 +1014,20 @@ function PosInner() {
             <form onSubmit={handleSaveNewCustomer} className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Customer Name<span className="text-red-500">*</span></label>
-                  <input required value={newCustForm.name} onChange={(e) => setNewCustForm(p => ({ ...p, name: e.target.value }))}
+                  <label className="block text-xs font-medium text-slate-600 mb-1">First Name<span className="text-red-500">*</span></label>
+                  <div className="flex gap-2">
+                    <select value={newCustForm.salutation} onChange={(e) => setNewCustForm(p => ({ ...p, salutation: e.target.value }))}
+                      className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 bg-white">
+                      <option>Mr</option>
+                      <option>Miss</option>
+                    </select>
+                    <input required placeholder="First name" value={newCustForm.firstName} onChange={(e) => setNewCustForm(p => ({ ...p, firstName: e.target.value }))}
+                      className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
+                  <input placeholder="Last name" value={newCustForm.lastName} onChange={(e) => setNewCustForm(p => ({ ...p, lastName: e.target.value }))}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
                 </div>
                 <div>
@@ -1017,23 +1038,6 @@ function PosInner() {
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
                   <input type="email" value={newCustForm.email} onChange={(e) => setNewCustForm(p => ({ ...p, email: e.target.value }))}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Whatsapp Number</label>
-                  <input value={newCustForm.phone} onChange={(e) => setNewCustForm(p => ({ ...p, phone: e.target.value }))}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
-                  <select value={newCustForm.country} onChange={(e) => setNewCustForm(p => ({ ...p, country: e.target.value }))}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 bg-white">
-                    {COUNTRIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
-                  <input value={newCustForm.city} onChange={(e) => setNewCustForm(p => ({ ...p, city: e.target.value }))}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
                 </div>
                 <div>

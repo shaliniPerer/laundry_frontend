@@ -3,42 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageScaffold } from "@/components/PageScaffold";
+import { DateInput } from "@/components/DateInput";
 import { api } from "@/lib/api";
-
-const COUNTRIES = [
-  "Sri Lanka",
-  "India",
-  "United Kingdom",
-  "United States",
-  "Australia",
-  "Canada",
-  "Singapore",
-  "Malaysia",
-  "Other",
-];
 
 const inputCls =
   "w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400";
 const labelCls = "block text-xs font-medium text-slate-600 mb-1";
 
 type CustomerForm = {
-  name: string;
+  salutation: string;
+  firstName: string;
+  lastName: string;
   mobile: string;
   email: string;
-  phone: string;
-  country: string;
-  city: string;
   address: string;
   dob: string;
 };
 
 const initialForm: CustomerForm = {
-  name: "",
+  salutation: "Mr",
+  firstName: "",
+  lastName: "",
   mobile: "",
   email: "",
-  phone: "",
-  country: "Sri Lanka",
-  city: "",
   address: "",
   dob: "",
 };
@@ -58,10 +45,18 @@ export default function NewCustomerPage() {
     setMsg(null);
     setSaving(true);
 
+    const name = [form.salutation, form.firstName, form.lastName].filter(Boolean).join(" ");
+
     const res = await api("/api/customers", {
       method: "POST",
       body: JSON.stringify({
-        ...form,
+        salutation: form.salutation,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        name,
+        mobile: form.mobile || undefined,
+        email: form.email || undefined,
+        address: form.address || undefined,
         dob: form.dob || undefined,
         status: "active",
       }),
@@ -84,17 +79,40 @@ export default function NewCustomerPage() {
           <p className="text-sm font-semibold text-slate-700">Please Enter Valid Data</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Salutation + First Name on same row */}
             <div>
               <label className={labelCls}>
-                Customer Name<span className="text-red-500">*</span>
+                First Name<span className="text-red-500">*</span>
               </label>
+              <div className="flex gap-2">
+                <select
+                  value={form.salutation}
+                  onChange={(e) => setField("salutation", e.target.value)}
+                  className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 bg-white"
+                >
+                  <option>Mr</option>
+                  <option>Miss</option>
+                </select>
+                <input
+                  required
+                  placeholder="First name"
+                  value={form.firstName}
+                  onChange={(e) => setField("firstName", e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>Last Name</label>
               <input
-                required
-                value={form.name}
-                onChange={(e) => setField("name", e.target.value)}
+                placeholder="Last name"
+                value={form.lastName}
+                onChange={(e) => setField("lastName", e.target.value)}
                 className={inputCls}
               />
             </div>
+
             <div>
               <label className={labelCls}>Mobile Number</label>
               <input
@@ -103,6 +121,7 @@ export default function NewCustomerPage() {
                 className={inputCls}
               />
             </div>
+
             <div>
               <label className={labelCls}>Email</label>
               <input
@@ -112,45 +131,16 @@ export default function NewCustomerPage() {
                 className={inputCls}
               />
             </div>
+
             <div>
-              <label className={labelCls}>Whatsapp Number</label>
-              <input
-                value={form.phone}
-                onChange={(e) => setField("phone", e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Country</label>
-              <select
-                value={form.country}
-                onChange={(e) => setField("country", e.target.value)}
-                className={`${inputCls} bg-white`}
-              >
-                {COUNTRIES.map((country) => (
-                  <option key={country}>{country}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>City</label>
-              <input
-                value={form.city}
-                onChange={(e) => setField("city", e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>
-                Birthday 
-              </label>
-              <input
-                type="date"
+              <label className={labelCls}>Birthday</label>
+              <DateInput
                 value={form.dob}
-                onChange={(e) => setField("dob", e.target.value)}
+                onChange={(v) => setField("dob", v)}
                 className={inputCls}
               />
             </div>
+
             <div className="md:col-span-2">
               <label className={labelCls}>Address</label>
               <textarea

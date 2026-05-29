@@ -51,6 +51,7 @@ export default function NewExpensePage() {
     if (!res.ok) { setMsg({ type: "err", text: res.error || "Failed to save expense" }); return; }
     setMsg({ type: "ok", text: "Expense saved successfully." });
     setReferenceNo(""); setCategoryId(""); setNote(""); setExpenseFor(""); setAmount(""); setAttachment(null);
+    setTimeout(() => router.push("/expenses/list"), 800);
   }
 
   function handleAttachment(file?: File) {
