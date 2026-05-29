@@ -47,6 +47,10 @@ type Stats = {
   monthlySales: { month: string; total: number }[];
   totalCustomers?: number;
   totalExpensesAmount?: number;
+  totalInvoices?: number;
+  totalInvoicesAmount?: number;
+  totalReceivedAmount?: number;
+  totalDueAmount?: number;
 };
 
 type OverviewRangeType = "today" | "this_week" | "this_month" | "custom";
@@ -418,31 +422,38 @@ export default function DashboardPage() {
     },
   ];
 
+
+  // Use new backend fields for summary cards
+  const totalInvoices = stats?.totalInvoices ?? 0;
+  const totalInvoicesAmount = stats?.totalInvoicesAmount ?? 0;
+  const totalReceivedAmount = stats?.totalReceivedAmount ?? 0;
+  const totalDueAmount = stats?.totalDueAmount ?? 0;
+
   const summaryCards = [
     {
       label: "Total Invoices",
-      value: 40, // Replace with real value if available
+      value: totalInvoices,
       gradient: "from-cyan-50 to-cyan-100/60",
       iconBg: "bg-cyan-500",
       Icon: Package,
     },
     {
       label: "Total Invoices Amount",
-      value: `LKR 51,005.54`, // Replace with real value if available
+      value: `LKR ${totalInvoicesAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       gradient: "from-green-50 to-green-100/60",
       iconBg: "bg-green-600",
       Icon: Plus,
     },
     {
       label: "Total Received Amount",
-      value: `LKR 40,589.93`, // Replace with real value if available
+      value: `LKR ${totalReceivedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       gradient: "from-amber-50 to-amber-100/60",
       iconBg: "bg-amber-500",
       Icon: Banknote,
     },
     {
       label: "Total Sales Due",
-      value: `LKR 10,415.61`, // Replace with real value if available
+      value: `LKR ${totalDueAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       gradient: "from-red-50 to-red-100/60",
       iconBg: "bg-red-500",
       Icon: RotateCcw,
