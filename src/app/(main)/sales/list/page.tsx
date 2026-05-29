@@ -61,6 +61,11 @@ function fmt(n?: number) {
   return `LKR ${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function fmtRounded(n?: number) {
+  // Show rounded up value as grand total
+  return `LKR ${Math.ceil(Number(n ?? 0)).toLocaleString("en-US")}`;
+}
+
 function fmtDate(d?: string) {
   if (!d) return "";
   const parts = d.split("-");
@@ -593,7 +598,7 @@ export default function SalesListPage() {
                         </button>
                       </td>
                       <td className="px-3 py-2">{s.customerName}</td>
-                      <td className="px-3 py-2 text-right">{Number(s.total ?? 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{fmtRounded(s.total)}</td>
                       <td className="px-3 py-2 text-right">{Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0)).toFixed(2)}</td>
                       <td className="px-3 py-2 text-right">{due.toFixed(2)}</td>
                       <td className="px-3 py-2">
@@ -713,11 +718,11 @@ export default function SalesListPage() {
                 <p className="text-xs text-slate-500 mt-0.5">{viewPaySale.customerName}</p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-right text-sm">
-                  <div className="text-slate-500">Grand Total: <span className="font-semibold text-slate-800">LKR {Number(viewPaySale.total ?? 0).toFixed(2)}</span></div>
-                  <div className="text-slate-500">Paid: <span className="font-semibold text-green-600">LKR {Number(viewPaySale.paidAmount ?? 0).toFixed(2)}</span></div>
-                  <div className="text-slate-500">Due: <span className={`font-semibold ${(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0 ? "text-red-600" : "text-green-600"}`}>LKR {(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)).toFixed(2)}</span></div>
-                </div>
+                  <div className="text-right text-sm">
+                    <div className="text-slate-500">Grand Total: <span className="font-semibold text-slate-800">{fmtRounded(viewPaySale.total)}</span></div>
+                    <div className="text-slate-500">Paid: <span className="font-semibold text-green-600">LKR {Number(viewPaySale.paidAmount ?? 0).toFixed(2)}</span></div>
+                    <div className="text-slate-500">Due: <span className={`font-semibold ${(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0 ? "text-red-600" : "text-green-600"}`}>LKR {(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)).toFixed(2)}</span></div>
+                  </div>
                 <button type="button" onClick={() => setViewPaySale(null)} className="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">×</button>
               </div>
             </div>

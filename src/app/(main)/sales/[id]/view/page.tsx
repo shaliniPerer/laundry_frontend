@@ -187,6 +187,7 @@ export default function SaleViewPage() {
   const otherCharges = sale.otherCharges ?? 0;
   const roundOff = sale.roundOff ?? 0;
   const grandTotal = sale.total ?? (grossSubtotal - discountOnAll + otherCharges + roundOff);
+  const roundedGrandTotal = Math.ceil(grandTotal);
   const payments = sale.payments ?? [];
   const paidTotal = payments.reduce((s, p) => s + p.amount, 0);
   const due = grandTotal - paidTotal;
@@ -378,7 +379,7 @@ export default function SaleViewPage() {
           <DashLine />
 
           {/* ── Grand Total ── */}
-          <TotalsRow label="Grand Total (LKR)" value={fmt(grandTotal)} bold size="9.4pt" />
+          <TotalsRow label="Grand Total (LKR)" value={fmt(roundedGrandTotal)} bold size="9.4pt" />
 
           <DashLine />
 
