@@ -23,7 +23,7 @@ type Customer = {
   discount?: number;
 };
 
-type Line = { itemId?: string; description: string; qty: number; unitPrice: number; discount: number; discountStr?: string; unit?: string };
+type Line = { itemId?: string; description: string; qty: number; qtyStr?: string; unitPrice: number; discount: number; discountStr?: string; unit?: string };
 
 type OtherChargeItem = { id: string; description: string; amount: number };
 
@@ -275,7 +275,7 @@ function PosInner() {
 
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
   const totalAmount = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const totalDiscount = lines.reduce((s, l) => s + l.discount * l.qty, 0);
+  const totalDiscount = lines.reduce((s, l) => s + l.discount, 0);
   const posDiscountAmount = posDiscountType === "percentage"
     ? Math.max(0, totalAmount - totalDiscount) * posDiscount / 100
     : posDiscount;
@@ -466,7 +466,7 @@ function PosInner() {
       qty: l.qty,
       unitPrice: l.unitPrice,
       discount: l.discount,
-      lineTotal: l.qty * (l.unitPrice - l.discount),
+      lineTotal: l.qty * l.unitPrice - l.discount,
     }));
 
     let savedId: string | null = editId ?? null;
@@ -538,7 +538,7 @@ function PosInner() {
       qty: l.qty,
       unitPrice: l.unitPrice,
       discount: l.discount,
-      lineTotal: l.qty * (l.unitPrice - l.discount),
+      lineTotal: l.qty * l.unitPrice - l.discount,
     }));
 
     let saleId: string | null = null;
@@ -704,11 +704,23 @@ function PosInner() {
                       <td className="px-3 py-1.5 text-slate-800 font-medium">{l.description}</td>
                       <td className="px-2 py-1.5">
                         <input
-                          type="number"
-                          min={decimalQty ? 0.01 : 1}
-                          step={decimalQty ? 0.01 : 1}
-                          value={l.qty}
-                          onChange={(e) => setLineQty(i, Number(e.target.value))}
+                          type="text"
+                          inputMode={decimalQty ? "decimal" : "numeric"}
+                          value={l.qtyStr !== undefined ? l.qtyStr : String(l.qty)}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const pattern = decimalQty ? /^\d*\.?\d*$/ : /^\d*$/;
+                            if (raw === "" || pattern.test(raw)) {
+                              const num = raw === "" || raw === "." ? 0 : parseFloat(raw);
+                              setLine(i, { qtyStr: raw, qty: isNaN(num) ? 0 : (decimalQty ? num : Math.trunc(num)) });
+                            }
+                          }}
+                          onBlur={() => {
+                            const unit = getLineUnit(l);
+                            const num = parseFloat(l.qtyStr ?? "0") || 0;
+                            const nextQty = normalizeQty(num, unit);
+                            setLine(i, { qtyStr: undefined, qty: nextQty });
+                          }}
                           className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400"
                         />
                       </td>
@@ -723,18 +735,20 @@ function PosInner() {
                             const raw = e.target.value;
                             if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
                               const num = raw === "" || raw === "." ? 0 : parseFloat(raw);
+                              const maxDiscount = l.qty * l.unitPrice;
+                              if (!isNaN(num) && num > maxDiscount) return;
                               setLine(i, { discountStr: raw, discount: isNaN(num) ? 0 : num });
                             }
                           }}
                           onBlur={() => {
                             const num = parseFloat(l.discountStr ?? "0") || 0;
-                            setLine(i, { discountStr: undefined, discount: num });
+                            setLine(i, { discountStr: undefined, discount: Math.min(num, l.qty * l.unitPrice) });
                           }}
                           className="w-full text-center border border-slate-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-blue-400"
                         />
                       </td>
                       <td className="px-2 py-1.5 text-right font-semibold text-slate-900">
-                        {(l.qty * (l.unitPrice - l.discount)).toFixed(2)}
+                        {(l.qty * l.unitPrice - l.discount).toFixed(2)}
                       </td>
                       <td className="px-1 py-1.5 text-center">
                         <button type="button" onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 p-0.5">
@@ -780,7 +794,6 @@ function PosInner() {
               <div className="flex flex-col gap-2">
                 <input
                   type="text"
-                  list="charge-name-suggestions"
                   placeholder="Description"
                   value={newChargeDesc}
                   onChange={(e) => setNewChargeDesc(e.target.value)}
@@ -794,7 +807,7 @@ function PosInner() {
                   type="number"
                   min={0}
                   step={0.01}
-                  placeholder="0.00"
+                  placeholder="0"
                   value={newChargeAmt}
                   onChange={(e) => setNewChargeAmt(e.target.value)}
                   className="w-full sm:w-20 border border-slate-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400"

@@ -256,7 +256,7 @@ export default function ItemListPage() {
                   {vis("Laundry Type") && <td className="px-3 py-2 text-slate-600 text-xs">{brandMap[item.brandId || ""] || "—"}</td>}
                   {vis("Service") && <td className="px-3 py-2 text-slate-600 text-xs">{catMap[item.categoryId || ""] || "—"}</td>}
                   {vis("Unit") && <td className="px-3 py-2 text-slate-600 text-xs">{item.unit || "—"}</td>}
-                  {vis("Price(LKR)") && <td className="px-3 py-2 text-slate-600 text-xs">{item.price != null ? `${item.price.toFixed(2)}` : "—"}</td>}
+                  {vis("Price") && <td className="px-3 py-2 text-slate-600 text-xs">{item.price != null ? `${item.price.toFixed(2)}` : "—"}</td>}
                   {vis("Status") && <td className="px-3 py-2"><span className="bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded">{(item.status || "active") === "active" ? "Active" : item.status}</span></td>}
                   <td className="px-3 py-2">
                     <DropdownMenu>

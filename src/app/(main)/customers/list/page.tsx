@@ -5,15 +5,20 @@ import Link from "next/link";
 import { Eye, History, Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
+import { DateInput } from "@/components/DateInput";
 import { api } from "@/lib/api";
 
 type Customer = {
   pk: string;
   customerNumber?: string;
+  salutation?: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   mobile?: string;
   phone?: string;
   email?: string;
+  dob?: string;
   gstNumber?: string;
   taxNumber?: string;
   country?: string;
@@ -224,7 +229,7 @@ export default function CustomerListPage() {
 
   function openEdit(customer: Customer) {
     setEditCustomer(customer);
-    setEditForm({ ...customer });
+    setEditForm({ ...customer, salutation: customer.salutation || "Mr" });
     setEditMsg(null);
     setOpenActionId(null);
   }
@@ -236,10 +241,12 @@ export default function CustomerListPage() {
     setEditMsg(null);
     setEditSaving(true);
     const id = editCustomer.pk.replace("CUSTOMER#", "");
+    const name = [editForm.salutation, editForm.firstName, editForm.lastName].filter(Boolean).join(" ") || editForm.name || "";
     const res = await api(`/api/customers/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...editForm,
+        name,
         discount: Number(editForm.discount ?? 0),
       }),
     });
@@ -667,70 +674,78 @@ export default function CustomerListPage() {
               </button>
             </div>
 
-            <form onSubmit={saveEdit} className="p-5 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  ["name", "Customer Name*", true],
-                  ["mobile", "Mobile", false],
-                  ["email", "Email", false],
-                  ["phone", "Phone", false],
-                  ["country", "Country", false],
-                  ["city", "City", false],
-                ].map(([key, label, required]) => (
-                  <div key={String(key)}>
-                    <label className="text-xs text-slate-500 mb-1 block">{String(label)}</label>
+            <form onSubmit={saveEdit} className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    First Name<span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={editForm.salutation || "Mr"}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, salutation: e.target.value }))}
+                      className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-400 bg-white"
+                    >
+                      <option>Mr</option>
+                      <option>Miss</option>
+                    </select>
                     <input
-                      required={Boolean(required)}
-                      type={key === "email" ? "email" : "text"}
-                      value={String(editForm[key as keyof Customer] ?? "")}
-                      onChange={(e) =>
-                        setEditForm((prev) => ({ ...prev, [String(key)]: e.target.value }))
-                      }
+                      required
+                      placeholder="First name"
+                      value={editForm.firstName || ""}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
                       className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
                     />
                   </div>
-                ))}
-
-                <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Discount Type</label>
-                  <select
-                    value={editForm.discountType || "percentage"}
-                    onChange={(e) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        discountType: e.target.value as "percentage" | "fixed",
-                      }))
-                    }
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 bg-white"
-                  >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount</option>
-                  </select>
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Discount Value</label>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Last Name</label>
                   <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={editForm.discount ?? 0}
-                    onChange={(e) =>
-                      setEditForm((prev) => ({ ...prev, discount: Number(e.target.value) }))
-                    }
+                    placeholder="Last name"
+                    value={editForm.lastName || ""}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
                     className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">Address</label>
-                <textarea
-                  value={editForm.address || ""}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))}
-                  rows={2}
-                  className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
-                />
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Mobile Number</label>
+                  <input
+                    value={editForm.mobile || ""}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, mobile: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email || ""}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Birthday</label>
+                  <DateInput
+                    value={editForm.dob || ""}
+                    onChange={(v) => setEditForm((prev) => ({ ...prev, dob: v }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Address</label>
+                  <textarea
+                    value={editForm.address || ""}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))}
+                    rows={3}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400 resize-y"
+                  />
+                </div>
               </div>
 
               {editMsg && <p className="text-sm text-red-600">{editMsg}</p>}

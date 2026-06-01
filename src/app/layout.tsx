@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "LaundryPro — Management",
+  title: "CIMPOS Laundry Management",
   description: "Laundry management: sales, customers, items, expenses, reports",
 };
 

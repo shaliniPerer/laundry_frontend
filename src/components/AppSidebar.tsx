@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useSidebar } from "./SidebarContext";
 
 type NavItem = { href: string; label: string };
 type NavGroup = { title: string; icon: React.ReactNode; items: NavItem[] };
@@ -156,6 +157,7 @@ export function AppSidebar() {
   const dashActive = pathname === "/dashboard";
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
+  const { open: desktopOpen, toggle: toggleDesktop } = useSidebar();
 
   return (
     <>
@@ -179,8 +181,10 @@ export function AppSidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[18rem] shrink-0 flex-col border-r border-white/10 shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:w-72 lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[18rem] shrink-0 flex-col border-r border-white/10 shadow-2xl transition-[transform,width] duration-300 lg:static lg:z-auto lg:shadow-none ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } ${
+          desktopOpen ? "lg:w-72 lg:translate-x-0" : "lg:w-0 lg:translate-x-0 lg:overflow-hidden"
         }`}
         style={{ background: "var(--sidebar-bg)" }}
       >
@@ -199,6 +203,14 @@ export function AppSidebar() {
             onClick={closeMobile}
             className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white lg:hidden"
             aria-label="Close navigation"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleDesktop}
+            className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white lg:block"
+            aria-label="Collapse sidebar"
           >
             <X className="h-4 w-4" />
           </button>

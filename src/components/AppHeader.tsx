@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
+import { LogOut, Menu, Moon, Plus, Sun, UserCircle } from "lucide-react";
 import { setToken } from "@/lib/api";
 import { useTheme } from "./ThemeProvider";
+import { useSidebar } from "./SidebarContext";
 
 const GROUPS: { title: string; items: { href: string; label: string }[] }[] = [
   {
@@ -32,7 +33,6 @@ const GROUPS: { title: string; items: { href: string; label: string }[] }[] = [
       { href: "/items/categories/list", label: "Service List" },
       { href: "/items/brands/new", label: "New Laundry Type" },
       { href: "/items/brands/list", label: "Laundry Type List" },
-      { href: "/items/labels", label: "Print Labels" },
       { href: "/items/import", label: "Import Items" },
     ],
   },
@@ -83,6 +83,7 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { open: sidebarOpen, toggle: toggleSidebar } = useSidebar();
 
   const activeGroup = GROUPS.find((g) =>
     g.items.some((i) => pathname === i.href || pathname?.startsWith(i.href + "/"))
@@ -99,11 +100,24 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
       style={{ background: "var(--header-bg)", borderColor: "var(--header-border)" }}
     >
       <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-3 pl-16 backdrop-blur-md sm:min-h-20 sm:py-4 sm:px-6 lg:min-h-24 lg:px-8 lg:pl-8">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl lg:text-[28px]" style={{ color: "var(--foreground)" }}>
-            {title}
-          </h1>
-          {subtitle && <p className="mt-1 text-sm font-medium" style={{ color: "var(--muted)" }}>{subtitle}</p>}
+        <div className="flex min-w-0 items-center gap-3">
+          {!sidebarOpen && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden lg:grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition-colors hover:opacity-90 active:scale-95"
+              style={{ background: "var(--surface2)", borderColor: "var(--border)", color: "var(--foreground2)" }}
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <div className="hidden sm:block min-w-0">
+            <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl lg:text-[28px]" style={{ color: "var(--foreground)" }}>
+              {title}
+            </h1>
+            {subtitle && <p className="mt-1 text-sm font-medium" style={{ color: "var(--muted)" }}>{subtitle}</p>}
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">

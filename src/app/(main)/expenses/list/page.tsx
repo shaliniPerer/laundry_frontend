@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X, Download } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
-import { api } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 import { DateInput } from "@/components/DateInput";
 
 type Expense = {
@@ -38,6 +38,23 @@ function fmtDate(d: string) {
 function attachmentHref(url?: string) {
   if (!url) return "";
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
+}
+
+async function downloadAttachment(url: string, fileName: string) {
+  const fullUrl = attachmentHref(url);
+  const token = getToken();
+  const res = await fetch(fullUrl, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const blob = await res.blob();
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objUrl;
+  a.download = fileName || "attachment";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(objUrl);
 }
 
 export default function ExpenseListPage() {
@@ -299,9 +316,23 @@ export default function ExpenseListPage() {
                   {vis("Note") && <td className="px-3 py-2 text-slate-500 text-xs max-w-xs truncate">{e.note || ""}</td>}
                   {vis("Attachment") && <td className="px-3 py-2 text-xs">
                     {e.attachment?.url ? (
-                      <a href={attachmentHref(e.attachment.url)} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
-                        {e.attachment.fileName || "Open file"}
-                      </a>
+                      <div className="flex items-center gap-1.5">
+                        <a href={attachmentHref(e.attachment.url)} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
+                          {[catMap[e.categoryId || ""] || e.categoryName, e.expenseFor].filter(Boolean).join(" - ") || e.attachment.fileName || "Open file"}
+                        </a>
+                        <button
+                          type="button"
+                          title="Download"
+                          onClick={() => {
+                            const base = [catMap[e.categoryId || ""] || e.categoryName, e.expenseFor].filter(Boolean).join(" - ");
+                            const ext = e.attachment!.fileName.match(/\.[^.]+$/)?.[0] ?? "";
+                            downloadAttachment(e.attachment!.url, (base || e.attachment!.fileName.replace(/\.[^.]+$/, "")) + ext);
+                          }}
+                          className="text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ) : "-"}
                   </td>}
                   {vis("Created by") && <td className="px-3 py-2 text-slate-500 text-xs">{e.createdBy || ""}</td>}

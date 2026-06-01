@@ -143,6 +143,17 @@ export default function NewItemPage() {
               <input required value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
             </div>
 
+             <div>
+              <label className={labelCls}>Service<span className="text-red-500">*</span></label>
+              <div className="flex gap-1.5">
+                <select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`${inputCls} flex-1`}>
+                  <option value="">— Select —</option>
+                  {categories.map((c) => <option key={c.pk} value={c.pk}>{c.name}</option>)}
+                </select>
+                <button type="button" onClick={() => window.open("/items/categories/new", "_blank")} className="bg-blue-600 text-white px-2.5 rounded hover:bg-blue-700 shrink-0"><Plus className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+
             <div>
               <label className={labelCls}>Laundry Type</label>
               <div className="flex gap-1.5">
@@ -153,16 +164,7 @@ export default function NewItemPage() {
                 <button type="button" onClick={() => window.open("/items/brands/new", "_blank")} className="bg-blue-600 text-white px-2.5 rounded hover:bg-blue-700 shrink-0"><Plus className="w-3.5 h-3.5" /></button>
               </div>
             </div>
-            <div>
-              <label className={labelCls}>Service<span className="text-red-500">*</span></label>
-              <div className="flex gap-1.5">
-                <select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`${inputCls} flex-1`}>
-                  <option value="">— Select —</option>
-                  {categories.map((c) => <option key={c.pk} value={c.pk}>{c.name}</option>)}
-                </select>
-                <button type="button" onClick={() => window.open("/items/categories/new", "_blank")} className="bg-blue-600 text-white px-2.5 rounded hover:bg-blue-700 shrink-0"><Plus className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
+           
             <div>
               <label className={labelCls}>Unit<span className="text-red-500">*</span></label>
               <select required value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls}>

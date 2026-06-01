@@ -6,6 +6,7 @@ import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { DateInput } from "@/components/DateInput";
 import { api } from "@/lib/api";
+import { useSidebar } from "@/components/SidebarContext";
 import {
   ShoppingBag,
   Plus,
@@ -63,7 +64,7 @@ function fmt(n?: number) {
 
 function fmtRounded(n?: number) {
   // Show rounded up value as grand total
-  return `LKR ${Math.ceil(Number(n ?? 0)).toLocaleString("en-US")}`;
+  return Math.ceil(Number(n ?? 0)).toLocaleString("en-US");
 }
 
 function fmtDate(d?: string) {
@@ -84,6 +85,7 @@ const PAGE_SIZES = [10, 25, 50, 100, 200];
 export default function SalesListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { open: sidebarOpen } = useSidebar();
   const customerFromQuery = searchParams.get("customer") ?? "";
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -437,7 +439,7 @@ export default function SalesListPage() {
           .no-print { display: none !important; }
         }
       `}</style>
-    <PageScaffold title="Sales List" subtitle="View/Search Sold Items" maxWidthClassName="max-w-[1400px]">
+    <PageScaffold title="Sales List" subtitle="View/Search Sold Items" maxWidthClassName="max-w-full">
       {/* Today Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         {[
@@ -559,7 +561,7 @@ export default function SalesListPage() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto" ref={menuRef} id="sales-print-area">
+        <div ref={menuRef} id="sales-print-area" className={sidebarOpen ? "overflow-x-auto" : ""}>
           {loading ? (
             <p className="p-8 text-center text-slate-400 text-sm">Loading…</p>
           ) : filtered.length === 0 ? (
@@ -673,9 +675,6 @@ export default function SalesListPage() {
                               onClick={() => { router.push(`/sales/pos?id=${id}`); }} />
                             <ActionItem icon={<CreditCard className="w-3.5 h-3.5 text-purple-500" />} label="View Payments"
                               onClick={() => { setOpenMenu(null); openViewPaymentsModal(s); }} />
-                            <hr className="my-1 border-slate-100" />
-                            
-                            <hr className="my-1 border-slate-100" />
                             <ActionItem icon={<Trash2 className="w-3.5 h-3.5 text-red-600" />} label={deleting === id ? "Deleting…" : "Delete"}
                               onClick={() => handleDelete(s)} danger />
                         </DropdownMenu>
