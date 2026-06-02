@@ -247,11 +247,11 @@ export function StandardReportLayout({
             >CSV</button>
             <button
               onClick={downloadExcel}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+              className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
             >Excel</button>
             <button
               onClick={downloadPDF}
-              className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
+              className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded inline-flex items-center gap-1 transition-colors"
             >PDF</button>
           </div>
         </div>

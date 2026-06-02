@@ -196,12 +196,11 @@ export default function PurchaseListPage() {
               { label: "PDF", fn: () => {} },
               { label: "Print", fn: () => window.print() },
               { label: "CSV", fn: downloadCSV },
-              { label: "Columns", fn: () => {} },
             ].map((b) => (
               <button
                 key={b.label}
                 onClick={b.fn}
-                className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors"
+                className={{"Copy":"bg-slate-600 hover:bg-slate-700","Excel":"bg-green-600 hover:bg-green-700","PDF":"bg-red-500 hover:bg-red-600","Print":"bg-slate-700 hover:bg-slate-800","CSV":"bg-green-700 hover:bg-green-800","Columns":"bg-slate-500 hover:bg-slate-600"}[b.label]+" text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors"}
               >
                 {b.label}
               </button>

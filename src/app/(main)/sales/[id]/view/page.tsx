@@ -94,7 +94,7 @@ function fmtTime12Short(time?: string): string {
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Math.ceil(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function DashLine({ short }: { short?: boolean }) {

@@ -65,6 +65,9 @@ export default function CustomerListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
+  const [dateFilter, setDateFilter] = useState<"" | "daily" | "weekly" | "monthly" | "custom">("");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [_openActionId, setOpenActionId] = useState<string | null>(null);
@@ -168,21 +171,37 @@ export default function CustomerListPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(todayStart.getDate() - todayStart.getDay());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const list = customers.filter((customer) => {
-      return (
-        !q ||
+      if (q && !(
         (customer.name || "").toLowerCase().includes(q) ||
         (customer.mobile || "").includes(q) ||
         (customer.email || "").toLowerCase().includes(q) ||
         (customer.customerNumber || "").toLowerCase().includes(q)
-      );
+      )) return false;
+      if (dateFilter && customer.createdAt) {
+        const d = new Date(customer.createdAt);
+        if (dateFilter === "daily" && d < todayStart) return false;
+        if (dateFilter === "weekly" && d < weekStart) return false;
+        if (dateFilter === "monthly" && d < monthStart) return false;
+        if (dateFilter === "custom") {
+          if (customFrom && d < new Date(customFrom)) return false;
+          if (customTo && d > new Date(customTo + "T23:59:59")) return false;
+        }
+      }
+      return true;
     });
     if (sortDir === null) return list;
     return [...list].sort((a, b) => {
       const diff = getStats(a).total - getStats(b).total;
       return sortDir === "desc" ? -diff : diff;
     });
-  }, [customers, search, sortDir, getStats]);
+  }, [customers, search, sortDir, dateFilter, customFrom, customTo, getStats]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -408,12 +427,11 @@ export default function CustomerListPage() {
               { label: "PDF", fn: () => {} },
               { label: "Print", fn: () => window.print() },
               { label: "CSV", fn: downloadCSV },
-              { label: "Columns", fn: () => {} },
             ].map((button) => (
               <button
                 key={button.label}
                 onClick={button.fn}
-                className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors"
+                className={{"Copy":"bg-slate-600 hover:bg-slate-700","Excel":"bg-green-600 hover:bg-green-700","PDF":"bg-red-500 hover:bg-red-600","Print":"bg-slate-700 hover:bg-slate-800","CSV":"bg-green-700 hover:bg-green-800","Columns":"bg-slate-500 hover:bg-slate-600"}[button.label]+" text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors"}
               >
                 {button.label}
               </button>
@@ -425,6 +443,35 @@ export default function CustomerListPage() {
             )}
 
             <div className="flex items-center gap-1 ml-1">
+              <span className="text-sm text-slate-600">Period:</span>
+              <select
+                value={dateFilter}
+                onChange={(e) => { setDateFilter(e.target.value as "" | "daily" | "weekly" | "monthly" | "custom"); setPage(1); }}
+                className="border border-slate-300 rounded px-2 py-1.5 text-sm bg-white outline-none focus:border-blue-400"
+              >
+                <option value="">All Time</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+            {dateFilter === "custom" && (
+              <>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-slate-600">From:</span>
+                  <input type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); setPage(1); }}
+                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none focus:border-blue-400" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-slate-600">To:</span>
+                  <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); setPage(1); }}
+                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none focus:border-blue-400" />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center gap-1 ml-1">
               <span className="text-sm text-slate-600">Sort:</span>
               <select
                 value={sortDir ?? ""}
@@ -432,8 +479,8 @@ export default function CustomerListPage() {
                 className="border border-slate-300 rounded px-2 py-1.5 text-sm bg-white outline-none focus:border-blue-400"
               >
                 <option value="">Default</option>
-                <option value="desc">Total: High → Low</option>
-                <option value="asc">Total: Low → High</option>
+                <option value="desc">High → Low</option>
+                <option value="asc">Low → High</option>
               </select>
             </div>
 

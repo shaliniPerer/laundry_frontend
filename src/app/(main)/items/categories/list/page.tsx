@@ -206,21 +206,9 @@ export default function CategoryListPage() {
             {[{ label: "Copy", fn: () => navigator.clipboard.writeText(filtered.map((c) => `${c.categoryCode || ""}\t${c.name}`).join("\n")) },
               { label: "Excel", fn: downloadExcel }, { label: "PDF", fn: printTable },
               { label: "Print", fn: printTable }, { label: "CSV", fn: downloadCSV }].map((btn) => (
-              <button type="button" key={btn.label} onClick={btn.fn} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">{btn.label}</button>
+              <button type="button" key={btn.label} onClick={btn.fn} className={{"Copy":"bg-slate-600 hover:bg-slate-700","Excel":"bg-green-600 hover:bg-green-700","PDF":"bg-red-500 hover:bg-red-600","Print":"bg-slate-700 hover:bg-slate-800","CSV":"bg-green-700 hover:bg-green-800"}[btn.label]+" text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors"}>{btn.label}</button>
             ))}
-            <div className="relative" ref={colPickerRef}>
-              <button type="button" onClick={() => setShowColPicker(p => !p)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">Columns</button>
-              {showColPicker && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-20 py-1 min-w-36">
-                  {CAT_COLS.map(col => (
-                    <label key={col} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50">
-                      <input type="checkbox" checked={vis(col)} onChange={() => toggleCol(col)} className="accent-teal-600" />
-                      {col}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+
             {selectedIds.size > 0 && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})

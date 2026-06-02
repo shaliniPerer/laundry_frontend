@@ -748,7 +748,7 @@ function PosInner() {
                         />
                       </td>
                       <td className="px-2 py-1.5 text-right font-semibold text-slate-900">
-                        {(l.qty * l.unitPrice - l.discount).toFixed(2)}
+                        {Math.ceil(l.qty * l.unitPrice - l.discount).toFixed(2)}
                       </td>
                       <td className="px-1 py-1.5 text-center">
                         <button type="button" onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 p-0.5">
@@ -887,22 +887,22 @@ function PosInner() {
           {/* Totals bar */}
           <div className="border-t border-slate-200 bg-slate-100 px-4 py-2 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 sm:divide-x sm:divide-slate-300">
             <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Quantity:</div><div className="text-xl font-bold text-slate-800">{totalQty}</div></div>
-            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Total Amount:</div><div className="text-xl font-bold text-slate-800">{totalAmount.toFixed(2)}</div></div>
+            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Total Amount:</div><div className="text-xl font-bold text-slate-800">{Math.ceil(totalAmount).toFixed(2)}</div></div>
             <div className="px-2">
               <div className="text-xs font-bold text-slate-600 mb-0.5">Total Discount:</div>
-              <div className="text-xl font-bold text-slate-800">{(totalDiscount + posDiscountAmount).toFixed(2)}</div>
+              <div className="text-xl font-bold text-slate-800">{Math.ceil(totalDiscount + posDiscountAmount).toFixed(2)}</div>
               {(totalDiscount > 0 || posDiscountAmount > 0) && (
                 <div className="mt-0.5 space-y-0.5 text-left">
                   {totalDiscount > 0 && (
                     <div className="flex justify-between text-xs text-slate-500">
                       <span>Item disc.</span>
-                      <span>{totalDiscount.toFixed(2)}</span>
+                      <span>{Math.ceil(totalDiscount).toFixed(2)}</span>
                     </div>
                   )}
                   {posDiscountAmount > 0 && (
                     <div className="flex justify-between text-xs text-amber-600 font-medium">
                       <span>{customer.pk ? "Cust. disc." : "POS disc."}{posDiscountType === "percentage" ? ` (${posDiscount}%)` : ""}</span>
-                      <span>{posDiscountAmount.toFixed(2)}</span>
+                      <span>{Math.ceil(posDiscountAmount).toFixed(2)}</span>
                     </div>
                   )}
                 </div>

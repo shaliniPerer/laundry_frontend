@@ -600,9 +600,9 @@ export default function SalesListPage() {
                         </button>
                       </td>
                       <td className="px-3 py-2">{s.customerName}</td>
-                      <td className="px-3 py-2 text-right">{fmtRounded(s.total)}</td>
-                      <td className="px-3 py-2 text-right">{Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0)).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right">{due.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{Math.ceil(Number(s.total ?? 0)).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{Math.ceil(Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0))).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{Math.ceil(due).toFixed(2)}</td>
                       <td className="px-3 py-2">
                         <PaymentBadge 
                           status={s.paymentStatus} 
