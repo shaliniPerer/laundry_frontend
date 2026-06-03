@@ -21,7 +21,11 @@ export default function UsersListPage() {
       if (rolesRes.ok && rolesRes.data?.roles) {
         const map: Record<string, string> = {};
         for (const r of rolesRes.data.roles) {
-          if (r.pk) map[r.pk] = r.name ?? r.pk;
+          if (r.pk) {
+            // Index by both "ROLE#uuid" and plain "uuid" to handle both storage formats
+            map[r.pk] = r.name ?? r.pk;
+            map[r.pk.replace("ROLE#", "")] = r.name ?? r.pk;
+          }
         }
         setRoleMap(map);
       }

@@ -65,7 +65,7 @@ export default function NewUserPage() {
           <select value={roleId} onChange={(e) => setRoleId(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
             <option value="">— Select role —</option>
             {roles.map((r) => (
-              <option key={r.pk} value={r.pk}>{r.name}</option>
+              <option key={r.pk} value={r.pk?.replace("ROLE#", "")}>{r.name}</option>
             ))}
           </select>
         </div>

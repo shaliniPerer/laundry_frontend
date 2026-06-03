@@ -913,9 +913,13 @@ function PosInner() {
 
           {/* Action buttons */}
           {editId ? (
-            <div className="grid grid-cols-2">
+            <div className="grid grid-cols-3">
+              <button type="button" onClick={handlePayLater} disabled={lines.length === 0 || submitting}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-3.5 text-sm font-bold flex items-center justify-center gap-1.5 transition-colors border-r border-blue-500 disabled:opacity-50">
+                <Hourglass className="w-4 h-4" /> {submitting ? "Saving…" : "Update Invoice"}
+              </button>
               <button type="button" onClick={openPayModal} disabled={lines.length === 0 || submitting}
-                className="bg-green-600 hover:bg-green-700 text-white py-3.5 text-sm font-bold transition-colors disabled:opacity-50">
+                className="bg-green-600 hover:bg-green-700 text-white py-3.5 text-sm font-bold transition-colors border-r border-green-500 disabled:opacity-50">
                 Update &amp; Pay
               </button>
               <button type="button" onClick={() => router.push("/sales/list")}

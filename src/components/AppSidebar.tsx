@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useSidebar } from "./SidebarContext";
+import { usePermissions } from "./PermissionsContext";
 
-type NavItem = { href: string; label: string };
+type NavItem = { href: string; label: string; permission?: string };
 type NavGroup = { title: string; icon: React.ReactNode; items: NavItem[] };
 
 const groups: NavGroup[] = [
@@ -27,90 +28,99 @@ const groups: NavGroup[] = [
     title: "Sales",
     icon: <ShoppingCart className="w-4 h-4" />,
     items: [
-      { href: "/sales/pos",          label: "POS" },
-      { href: "/sales/list",         label: "Sales List" },
-      { href: "/sales/holds",        label: "Hold Orders" },
+      { href: "/sales/pos",          label: "POS",          permission: "sales:add" },
+      { href: "/sales/list",         label: "Sales List",   permission: "sales:view" },
+      { href: "/sales/holds",        label: "Hold Orders",  permission: "sales:holds" },
     ],
   },
   {
     title: "Customers",
     icon: <Users className="w-4 h-4" />,
     items: [
-      { href: "/customers/new",    label: "New Customer" },
-      { href: "/customers/list",   label: "Customer List" },
-      { href: "/customers/import", label: "Import Customers" },
+      { href: "/customers/new",    label: "New Customer",      permission: "customers:add" },
+      { href: "/customers/list",   label: "Customer List",     permission: "customers:view" },
+      { href: "/customers/import", label: "Import Customers",  permission: "customers:import" },
     ],
   },
   {
     title: "Items",
     icon: <Package className="w-4 h-4" />,
     items: [
-      { href: "/items/new",             label: "New Item" },
-      { href: "/items/list",            label: "Item List" },
-      { href: "/items/categories/new",  label: "New Service" },
-      { href: "/items/categories/list", label: "Services List" },
-      { href: "/items/brands/new",      label: "New Laundry Type" },
-      { href: "/items/brands/list",     label: "Laundry Types List" },
-      // { href: "/items/labels",          label: "Print Labels" },
-      { href: "/items/import",          label: "Import Items" },
+      { href: "/items/new",             label: "New Item",           permission: "items:add" },
+      { href: "/items/list",            label: "Item List",          permission: "items:view" },
+      { href: "/items/categories/new",  label: "New Service",        permission: "item-categories:add" },
+      { href: "/items/categories/list", label: "Services List",      permission: "item-categories:view" },
+      { href: "/items/brands/new",      label: "New Laundry Type",   permission: "item-brands:add" },
+      { href: "/items/brands/list",     label: "Laundry Types List", permission: "item-brands:view" },
+      { href: "/items/import",          label: "Import Items",       permission: "items:import" },
     ],
   },
   {
     title: "Expenses",
     icon: <Receipt className="w-4 h-4" />,
     items: [
-      { href: "/expenses/new",             label: "New Expense" },
-      { href: "/expenses/list",            label: "Expense List" },
-      { href: "/expenses/categories/new",  label: "New Category" },
-      { href: "/expenses/categories/list", label: "Category List" },
+      { href: "/expenses/new",             label: "New Expense",    permission: "expenses:add" },
+      { href: "/expenses/list",            label: "Expense List",   permission: "expenses:view" },
+      { href: "/expenses/categories/new",  label: "New Category",   permission: "expense-categories:add" },
+      { href: "/expenses/categories/list", label: "Category List",  permission: "expense-categories:view" },
     ],
   },
   {
     title: "Reports",
     icon: <BarChart3 className="w-4 h-4" />,
     items: [
-      { href: "/reports/item-sales",     label: "Item Sales Report" },
-      { href: "/reports/sales",          label: "Sales Report" },
-      { href: "/reports/sales-payments", label: "Sales Payments Report" },
-      { href: "/reports/expense",        label: "Expense Report" },
-      { href: "/reports/other-charges",  label: "Other Charges Report" },
+      { href: "/reports/item-sales",     label: "Item Sales Report",      permission: "reports:item-sales" },
+      { href: "/reports/sales",          label: "Sales Report",           permission: "reports:sales" },
+      { href: "/reports/sales-payments", label: "Sales Payments Report",  permission: "reports:sales-payments" },
+      { href: "/reports/expense",        label: "Expense Report",         permission: "reports:expense" },
+      { href: "/reports/other-charges",  label: "Other Charges Report",   permission: "reports:other-charges" },
     ],
   },
   {
     title: "SMS",
     icon: <MessageSquare className="w-4 h-4" />,
     items: [
-      { href: "/sms/log",       label: "Message Log"       },
-      { href: "/sms/customers", label: "Customer Sync"    },
-      { href: "/sms/events",    label: "Event Manager"    },
-      { href: "/sms/templates", label: "Templates"         },
-      { href: "/sms/birthdays", label: "Customer Birthday" },
+      { href: "/sms/log",       label: "Message Log",      permission: "sms:view" },
+      { href: "/sms/customers", label: "Customer Sync",    permission: "sms:manage" },
+      { href: "/sms/events",    label: "Event Manager",    permission: "sms:manage" },
+      { href: "/sms/templates", label: "Templates",        permission: "sms:manage" },
+      { href: "/sms/birthdays", label: "Customer Birthday",permission: "sms:manage" },
     ],
   },
   {
     title: "Users",
     icon: <Shield className="w-4 h-4" />,
     items: [
-      { href: "/users/new",   label: "New User" },
-      { href: "/users/list",  label: "Users List" },
-      { href: "/users/roles", label: "Roles List" },
+      { href: "/users/new",   label: "New User",   permission: "users:add" },
+      { href: "/users/list",  label: "Users List", permission: "users:view" },
+      { href: "/users/roles", label: "Roles List", permission: "roles:view" },
     ],
   },
   {
     title: "Profile Settings",
     icon: <UserCircle className="w-4 h-4" />,
     items: [
-      { href: "/profile", label: "Edit Profile" },
+      { href: "/profile", label: "Edit Profile" }, // always visible
     ],
   },
 ];
 
 function NavSection({ group, onNavigate }: { group: NavGroup; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const active = group.items.some(
+  const { hasPermission } = usePermissions();
+
+  const visibleItems = group.items.filter(
+    (i) => !i.permission || hasPermission(i.permission)
+  );
+
+  const active = visibleItems.some(
     (i) => pathname === i.href || pathname?.startsWith(i.href + "/")
   );
+
+  // All hooks must be called before any conditional return
   const [open, setOpen] = useState(active);
+
+  if (visibleItems.length === 0) return null;
 
   return (
     <div className="mb-1">
@@ -129,7 +139,7 @@ function NavSection({ group, onNavigate }: { group: NavGroup; onNavigate?: () =>
       </button>
       {open && (
         <div className="mt-1 ml-5 pl-3 border-l border-teal-300/25 space-y-0.5 pb-1.5">
-          {group.items.map((item) => {
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
             return (
               <Link
@@ -158,6 +168,8 @@ export function AppSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
   const { open: desktopOpen, toggle: toggleDesktop } = useSidebar();
+  const { hasPermission } = usePermissions();
+  const showDashboard = hasPermission("dashboard:view");
 
   return (
     <>
@@ -220,20 +232,22 @@ export function AppSidebar() {
           <div className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
             Main menu
           </div>
-          <Link
-            href="/dashboard"
-            onClick={closeMobile}
-            style={{
-              color: dashActive ? "#ffffff" : "var(--sidebar-text)",
-              background: dashActive ? "var(--sidebar-active-bg)" : "rgba(255,255,255,0.06)",
-            }}
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold mb-2 transition-colors hover:bg-white/10"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/8 ring-1 ring-white/8">
-              <LayoutDashboard className="w-4 h-4 opacity-80" />
-            </span>
-            Dashboard
-          </Link>
+          {showDashboard && (
+            <Link
+              href="/dashboard"
+              onClick={closeMobile}
+              style={{
+                color: dashActive ? "#ffffff" : "var(--sidebar-text)",
+                background: dashActive ? "var(--sidebar-active-bg)" : "rgba(255,255,255,0.06)",
+              }}
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold mb-2 transition-colors hover:bg-white/10"
+            >
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/8 ring-1 ring-white/8">
+                <LayoutDashboard className="w-4 h-4 opacity-80" />
+              </span>
+              Dashboard
+            </Link>
+          )}
           {groups.map((g) => (
             <NavSection key={g.title} group={g} onNavigate={closeMobile} />
           ))}
