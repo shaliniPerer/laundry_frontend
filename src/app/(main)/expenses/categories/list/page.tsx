@@ -14,8 +14,13 @@ export default function ExpenseCategoryListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const { hasPermission } = usePermissions();
+  const [editCat, setEditCat] = useState<Category | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
   const [editSaving, setEditSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   const EXP_CAT_COLS = ["Category Name", "Description", "Status"];
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -42,12 +47,6 @@ export default function ExpenseCategoryListPage() {
     if (showColPicker) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showColPicker]);
-
-  useEffect(() => {
-    function handler() { setOpenActionId(null); }
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -80,13 +79,11 @@ export default function ExpenseCategoryListPage() {
     const id = c.pk.replace("EXPENSE_CAT#", "");
     await api(`/api/expenses/categories/${id}`, { method: "DELETE" });
     setCategories((prev) => prev.filter((x) => x.pk !== c.pk));
-    setOpenActionId(null);
   }
 
   function openEdit(c: Category) {
     setEditCat(c);
     setEditForm({ ...c });
-    setOpenActionId(null);
   }
 
   async function saveEdit(e: React.FormEvent) {
