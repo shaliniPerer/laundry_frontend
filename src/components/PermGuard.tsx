@@ -9,10 +9,10 @@ import { usePermissions } from "./PermissionsContext";
  * Checked in order — first match wins.
  * Routes NOT listed here are freely accessible (e.g. /profile).
  */
-const ROUTE_PERMS: { prefix: string; perm: string }[] = [
+const ROUTE_PERMS: { prefix: string; perm: string | string[] }[] = [
   { prefix: "/dashboard",                    perm: "dashboard:view" },
   // Sales — specific before general
-  { prefix: "/sales/pos",                    perm: "sales:add" },
+  { prefix: "/sales/pos",                    perm: ["sales:add", "sales:edit"] },
   { prefix: "/sales/holds",                  perm: "sales:holds" },
   { prefix: "/sales/returns",                perm: "sales:returns" },
   { prefix: "/sales/new",                    perm: "sales:add" },
@@ -49,7 +49,7 @@ const ROUTE_PERMS: { prefix: string; perm: string }[] = [
   { prefix: "/users/",                       perm: "users:view" },
 ];
 
-function getRequiredPerm(pathname: string): string | null {
+function getRequiredPerm(pathname: string): string | string[] | null {
   for (const { prefix, perm } of ROUTE_PERMS) {
     if (pathname === prefix || pathname.startsWith(prefix)) return perm;
   }
@@ -62,7 +62,11 @@ export function PermGuard({ children }: { children: React.ReactNode }) {
   const { hasPermission } = usePermissions();
 
   const requiredPerm = getRequiredPerm(pathname);
-  const allowed = !requiredPerm || hasPermission(requiredPerm);
+  const allowed =
+    !requiredPerm ||
+    (Array.isArray(requiredPerm)
+      ? requiredPerm.some((p) => hasPermission(p))
+      : hasPermission(requiredPerm));
 
   useEffect(() => {
     if (!allowed) router.replace("/dashboard");

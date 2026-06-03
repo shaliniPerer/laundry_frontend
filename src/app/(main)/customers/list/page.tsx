@@ -7,6 +7,7 @@ import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { DateInput } from "@/components/DateInput";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/components/PermissionsContext";
 
 type Customer = {
   pk: string;
@@ -63,6 +64,7 @@ export default function CustomerListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [returns, setReturns] = useState<SaleReturn[]>([]);
   const [loading, setLoading] = useState(true);
+  const { hasPermission } = usePermissions();
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc" | null>(null);
   const [dateFilter, setDateFilter] = useState<"" | "daily" | "weekly" | "monthly" | "custom">("");
@@ -436,7 +438,7 @@ export default function CustomerListPage() {
                 {button.label}
               </button>
             ))}
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 && hasPermission("customers:delete") && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
               </button>
@@ -620,22 +622,22 @@ export default function CustomerListPage() {
                             <Eye className="w-3.5 h-3.5 text-slate-600" />
                             View Details
                           </button>
-                          <button
+                          {hasPermission("customers:edit") && <button
                             type="button"
                             onClick={() => openEdit(customer)}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
                           >
                             <Pencil className="w-3.5 h-3.5 text-teal-600" />
                             Edit Details
-                          </button>
-                          <button
+                          </button>}
+                          {hasPermission("customers:delete") && <button
                             type="button"
                             onClick={() => deleteCustomer(customer)}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             Delete
-                          </button>
+                          </button>}
                         </DropdownMenu>
                       </td>
                     </tr>

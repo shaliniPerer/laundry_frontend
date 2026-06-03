@@ -6,6 +6,7 @@ import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { DateInput } from "@/components/DateInput";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/components/PermissionsContext";
 import { useSidebar } from "@/components/SidebarContext";
 import {
   ShoppingBag,
@@ -90,6 +91,7 @@ export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const { hasPermission } = usePermissions();
   const [todayStats, setTodayStats] = useState<{ todayInvoices: number; todayNewCustomers: number; todaySalesAmount: number; todayReceivedAmount: number; todayExpensesAmount: number } | null>(null);
   const [search, setSearch] = useState("");
   const [customerFilter, setCustomerFilter] = useState(customerFromQuery);
@@ -552,7 +554,7 @@ export default function SalesListPage() {
             <ExportBtn icon={<FileText className="w-3.5 h-3.5" />} label="PDF" onClick={handlePrint} color="bg-red-500" />
             <ExportBtn icon={<Printer className="w-3.5 h-3.5" />} label="Print" onClick={handlePrint} color="bg-slate-700" />
             <ExportBtn icon={<FileText className="w-3.5 h-3.5" />} label="CSV" onClick={exportCSV} color="bg-green-700" />
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 && hasPermission("sales:delete") && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors ml-2">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
               </button>
@@ -671,12 +673,12 @@ export default function SalesListPage() {
                         <DropdownMenu buttonClassName="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-1.5 rounded transition-colors">
                             <ActionItem icon={<Eye className="w-3.5 h-3.5 text-blue-500" />} label="Invoice"
                               onClick={() => { router.push(`/sales/${id}/view`); }} />
-                            <ActionItem icon={<Pencil className="w-3.5 h-3.5 text-green-600" />} label="Edit"
-                              onClick={() => { router.push(`/sales/pos?id=${id}`); }} />
+                            {hasPermission("sales:edit") && <ActionItem icon={<Pencil className="w-3.5 h-3.5 text-green-600" />} label="Edit"
+                              onClick={() => { router.push(`/sales/pos?id=${id}`); }} />}
                             <ActionItem icon={<CreditCard className="w-3.5 h-3.5 text-purple-500" />} label="View Payments"
                               onClick={() => { setOpenMenu(null); openViewPaymentsModal(s); }} />
-                            <ActionItem icon={<Trash2 className="w-3.5 h-3.5 text-red-600" />} label={deleting === id ? "Deleting…" : "Delete"}
-                              onClick={() => handleDelete(s)} danger />
+                            {hasPermission("sales:delete") && <ActionItem icon={<Trash2 className="w-3.5 h-3.5 text-red-600" />} label={deleting === id ? "Deleting…" : "Delete"}
+                              onClick={() => handleDelete(s)} danger />}
                         </DropdownMenu>
                       </td>
                     </tr>
@@ -760,15 +762,15 @@ export default function SalesListPage() {
                         <td className="px-3 py-2 text-right font-semibold">{Number(p.amount).toFixed(2)}</td>
                         <td className="px-3 py-2 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button type="button" title="Edit payment"
+                            {hasPermission("sales:edit") && <button type="button" title="Edit payment"
                               onClick={() => openEditPayment(p)}
                               className="text-blue-500 hover:text-blue-700 transition-colors">
                               <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button type="button" title="Delete payment" onClick={() => handleDeletePayment(p.id)}
+                            </button>}
+                            {hasPermission("sales:delete") && <button type="button" title="Delete payment" onClick={() => handleDeletePayment(p.id)}
                               className="text-red-400 hover:text-red-600 transition-colors">
                               <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>

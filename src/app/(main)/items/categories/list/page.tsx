@@ -6,6 +6,7 @@ import { Pencil, Trash2, X } from "lucide-react";
 import { PageScaffold } from "@/components/PageScaffold";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/components/PermissionsContext";
 
 type Category = {
   pk: string;
@@ -17,12 +18,7 @@ type Category = {
 export default function CategoryListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [perPage, setPerPage] = useState(10);
-  const [page, setPage] = useState(1);
-  const [_openActionId, setOpenActionId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editCat, setEditCat] = useState<Category | null>(null);
+  const { hasPermission } = usePermissions();
   const [editForm, setEditForm] = useState<Partial<Category>>({});
   const [editSaving, setEditSaving] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
@@ -209,7 +205,7 @@ export default function CategoryListPage() {
               <button type="button" key={btn.label} onClick={btn.fn} className={{"Copy":"bg-slate-600 hover:bg-slate-700","Excel":"bg-green-600 hover:bg-green-700","PDF":"bg-red-500 hover:bg-red-600","Print":"bg-slate-700 hover:bg-slate-800","CSV":"bg-green-700 hover:bg-green-800"}[btn.label]+" text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors"}>{btn.label}</button>
             ))}
 
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 && hasPermission("item-categories:delete") && (
               <button type="button" onClick={handleBulkDelete} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
               </button>
@@ -245,8 +241,8 @@ export default function CategoryListPage() {
                   {vis("Description") && <td className="px-3 py-2 text-slate-500 text-xs">{c.description || "-"}</td>}
                   <td className="px-3 py-2">
                     <DropdownMenu>
-                      <button type="button" onClick={() => openEdit(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>
-                      <button type="button" onClick={() => deleteCategory(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                      {hasPermission("item-categories:edit") && <button type="button" onClick={() => openEdit(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"><Pencil className="w-3.5 h-3.5 text-teal-600" /> Edit</button>}
+                      {hasPermission("item-categories:delete") && <button type="button" onClick={() => deleteCategory(c)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-red-600 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>}
                     </DropdownMenu>
                   </td>
                 </tr>
