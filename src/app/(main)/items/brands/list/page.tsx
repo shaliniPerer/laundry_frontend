@@ -19,9 +19,13 @@ export default function BrandListPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const { hasPermission } = usePermissions();
+  const [editBrand, setEditBrand] = useState<Brand | null>(null);
   const [editForm, setEditForm] = useState<Partial<Brand>>({});
   const [editSaving, setEditSaving] = useState(false);
-  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   const BRAND_COLS = ["Laundry Type Code", "Laundry Type Name", "Description"];
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -44,15 +48,6 @@ export default function BrandListPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    function handler(event: MouseEvent) {
-      if (actionMenuRef.current?.contains(event.target as Node)) return;
-      setOpenActionId(null);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -99,13 +94,11 @@ export default function BrandListPage() {
     const res = await api(`/api/items/brands/${id}`, { method: "DELETE" });
     if (!res.ok) return;
     setBrands((prev) => prev.filter((x) => x.pk !== b.pk));
-    setOpenActionId(null);
   }
 
   function openEdit(b: Brand) {
     setEditBrand(b);
     setEditForm({ ...b });
-    setOpenActionId(null);
   }
 
   async function saveEdit(e: React.FormEvent) {

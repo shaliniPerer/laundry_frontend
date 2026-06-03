@@ -66,6 +66,10 @@ export default function ExpenseListPage() {
   const [editExp, setEditExp] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
   const [editSaving, setEditSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   const EXPENSE_COLS = ["Date", "Category", "Reference No.", "Expense for", "Amount", "Note", "Attachment", "Created by"];
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -96,12 +100,6 @@ export default function ExpenseListPage() {
     if (showColPicker) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showColPicker]);
-
-  useEffect(() => {
-    function handler() { setOpenActionId(null); }
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
 
   const catMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.pk, c.name])), [categories]);
 
@@ -143,13 +141,11 @@ export default function ExpenseListPage() {
     const id = e.pk.replace("EXPENSE#", "");
     await api(`/api/expenses/${id}`, { method: "DELETE" });
     setExpenses((prev) => prev.filter((x) => x.pk !== e.pk));
-    setOpenActionId(null);
   }
 
   function openEdit(e: Expense) {
     setEditExp(e);
     setEditForm({ ...e });
-    setOpenActionId(null);
   }
 
   async function saveEdit(e: React.FormEvent) {

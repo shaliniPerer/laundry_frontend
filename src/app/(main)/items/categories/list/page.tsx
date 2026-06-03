@@ -19,9 +19,13 @@ export default function CategoryListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const { hasPermission } = usePermissions();
+  const [editCat, setEditCat] = useState<Category | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
   const [editSaving, setEditSaving] = useState(false);
-  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   const CAT_COLS = ["Service Code", "Service Name", "Description"];
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -44,15 +48,6 @@ export default function CategoryListPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    function handler(event: MouseEvent) {
-      if (actionMenuRef.current?.contains(event.target as Node)) return;
-      setOpenActionId(null);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -99,13 +94,11 @@ export default function CategoryListPage() {
     const res = await api(`/api/items/categories/${id}`, { method: "DELETE" });
     if (!res.ok) return;
     setCategories((prev) => prev.filter((x) => x.pk !== c.pk));
-    setOpenActionId(null);
   }
 
   function openEdit(c: Category) {
     setEditCat(c);
     setEditForm({ ...c });
-    setOpenActionId(null);
   }
 
   async function saveEdit(e: React.FormEvent) {
