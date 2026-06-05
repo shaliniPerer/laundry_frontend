@@ -79,7 +79,9 @@ function canUseDecimalQty(unit?: string) {
 function normalizeQty(value: number, unit?: string) {
   if (!Number.isFinite(value)) return canUseDecimalQty(unit) ? 0.01 : 1;
   const min = canUseDecimalQty(unit) ? 0.01 : 1;
-  const next = canUseDecimalQty(unit) ? value : Math.trunc(value);
+  const next = canUseDecimalQty(unit)
+    ? Math.round(value * 100000) / 100000  // max 5 decimal places
+    : Math.trunc(value);
   return Math.max(min, next);
 }
 
@@ -193,7 +195,7 @@ function PosInner() {
         customerName?: string; customerId?: string; customerMobile?: string;
         deliveryDate?: string; otherCharges?: number;
         otherChargeItems?: { description: string; amount: number }[];
-        discountOnAll?: number; discountOnAllType?: string;
+        discountOnAll?: number; discountOnAllType?: string; discountOnAllRaw?: number;
         lines?: Line[];
         paidAmount?: number;
       };
@@ -205,8 +207,18 @@ function PosInner() {
       } else {
         setOtherChargeItems([]);
       }
-      setPosDiscount(s.discountOnAll ?? 0);
-      setPosDiscountType((s.discountOnAllType as "percentage" | "fixed") ?? "fixed");
+      if (s.discountOnAllType === "percentage" && s.discountOnAllRaw != null) {
+        // New records: raw % stored separately, use it directly
+        setPosDiscount(s.discountOnAllRaw);
+        setPosDiscountType("percentage");
+      } else if (s.discountOnAllType === "percentage") {
+        // Old records: discountOnAll was stored as computed amount, treat as fixed to avoid multiplying wrong
+        setPosDiscount(s.discountOnAll ?? 0);
+        setPosDiscountType("fixed");
+      } else {
+        setPosDiscount(s.discountOnAll ?? 0);
+        setPosDiscountType((s.discountOnAllType as "percentage" | "fixed") ?? "fixed");
+      }
       setPreviouslyPaid(s.paidAmount ?? 0);
       if (s.lines) setLines(s.lines.map((l) => ({ ...l, discount: l.discount ?? 0 })));
 
@@ -484,6 +496,7 @@ function PosInner() {
           otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
+          discountOnAllRaw: posDiscountType === "percentage" && posDiscount > 0 ? posDiscount : undefined,
           sendSms,
           payments: [],
           lines: linePayload,
@@ -508,6 +521,7 @@ function PosInner() {
           otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
+          discountOnAllRaw: posDiscountType === "percentage" && posDiscount > 0 ? posDiscount : undefined,
           lines: linePayload,
         }),
       });
@@ -557,6 +571,7 @@ function PosInner() {
           otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
+          discountOnAllRaw: posDiscountType === "percentage" && posDiscount > 0 ? posDiscount : undefined,
           lines: linePayload,
         }),
       });
@@ -583,6 +598,7 @@ function PosInner() {
           otherChargeItems: otherChargeItems.length > 0 ? otherChargeItems.map(c => ({ description: c.description, amount: c.amount })) : undefined,
           discountOnAll: posDiscountAmount || undefined,
           discountOnAllType: posDiscountAmount > 0 ? posDiscountType : undefined,
+          discountOnAllRaw: posDiscountType === "percentage" && posDiscount > 0 ? posDiscount : undefined,
           sendSms,
           payments,
           lines: linePayload,
@@ -706,7 +722,7 @@ function PosInner() {
                         <input
                           type="text"
                           inputMode={decimalQty ? "decimal" : "numeric"}
-                          value={l.qtyStr !== undefined ? l.qtyStr : String(l.qty)}
+                          value={l.qtyStr !== undefined ? l.qtyStr : parseFloat(l.qty.toFixed(5)).toString()}
                           onChange={(e) => {
                             const raw = e.target.value;
                             const pattern = decimalQty ? /^\d*\.?\d*$/ : /^\d*$/;
@@ -886,29 +902,29 @@ function PosInner() {
 
           {/* Totals bar */}
           <div className="border-t border-slate-200 bg-slate-100 px-4 py-2 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 sm:divide-x sm:divide-slate-300">
-            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Quantity:</div><div className="text-xl font-bold text-slate-800">{totalQty}</div></div>
-            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Total Amount:</div><div className="text-xl font-bold text-slate-800">{Math.ceil(totalAmount).toFixed(2)}</div></div>
+            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Quantity:</div><div className="text-xl font-bold text-slate-800">{parseFloat(totalQty.toFixed(5))}</div></div>
+            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Total Amount:</div><div className="text-xl font-bold text-slate-800">{Math.ceil(totalAmount).toLocaleString("en-US")}</div></div>
             <div className="px-2">
               <div className="text-xs font-bold text-slate-600 mb-0.5">Total Discount:</div>
-              <div className="text-xl font-bold text-slate-800">{Math.ceil(totalDiscount + posDiscountAmount).toFixed(2)}</div>
+              <div className="text-xl font-bold text-slate-800">{Math.ceil(totalDiscount + posDiscountAmount).toLocaleString("en-US")}</div>
               {(totalDiscount > 0 || posDiscountAmount > 0) && (
                 <div className="mt-0.5 space-y-0.5 text-left">
                   {totalDiscount > 0 && (
                     <div className="flex justify-between text-xs text-slate-500">
                       <span>Item disc.</span>
-                      <span>{Math.ceil(totalDiscount).toFixed(2)}</span>
+                      <span>{Math.ceil(totalDiscount).toLocaleString("en-US")}</span>
                     </div>
                   )}
                   {posDiscountAmount > 0 && (
                     <div className="flex justify-between text-xs text-amber-600 font-medium">
                       <span>{customer.pk ? "Cust. disc." : "POS disc."}{posDiscountType === "percentage" ? ` (${posDiscount}%)` : ""}</span>
-                      <span>{Math.ceil(posDiscountAmount).toFixed(2)}</span>
+                      <span>{Math.ceil(posDiscountAmount).toLocaleString("en-US")}</span>
                     </div>
                   )}
                 </div>
               )}
             </div>
-            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Grand Total:</div><div className="text-xl font-bold text-blue-700">{grandTotal.toFixed(2)}</div></div>
+            <div className="px-2"><div className="text-xs font-bold text-slate-600 mb-0.5">Grand Total:</div><div className="text-xl font-bold text-blue-700">{grandTotal.toLocaleString("en-US")}</div></div>
           </div>
 
           {/* Action buttons */}
@@ -998,7 +1014,7 @@ function PosInner() {
                     <button key={item.pk} type="button" onClick={() => addItem(item)}
                       className="relative bg-green-500 hover:bg-green-600 active:scale-95 text-white rounded overflow-hidden text-center transition-all">
                       {lineQty !== undefined && (
-                        <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br z-10 leading-tight">Qty: {lineQty}</div>
+                        <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br z-10 leading-tight">Qty: {parseFloat(lineQty.toFixed(5))}</div>
                       )}
                       <div className="flex items-center justify-center py-5 bg-green-500">
                         <div className="w-12 h-12 rounded-full border-2 border-white/40 bg-white/20 flex items-center justify-center">
@@ -1059,8 +1075,11 @@ function PosInner() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Birthday</label>
-                  <input type="date" value={newCustForm.dob} onChange={(e) => setNewCustForm(p => ({ ...p, dob: e.target.value }))}
-                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400" />
+                  <DateInput
+                    value={newCustForm.dob}
+                    onChange={(v) => setNewCustForm(p => ({ ...p, dob: v }))}
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-400"
+                  />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-600 mb-1">Address</label>
@@ -1095,7 +1114,7 @@ function PosInner() {
             {/* Modal header */}
             <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-lg text-slate-800">Payment</h2>
-              <div className="text-sm font-semibold text-blue-700">Grand Total: LKR {grandTotal.toFixed(2)}</div>
+              <div className="text-sm font-semibold text-blue-700">Grand Total: LKR {grandTotal.toLocaleString("en-US")}</div>
             </div>
 
             <div className="p-4 space-y-3 overflow-y-auto flex-1">

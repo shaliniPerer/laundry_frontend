@@ -26,10 +26,10 @@ export default function SalesPaymentsReportPage() {
       columns={[
         { key: "invoiceNumber", label: "Invoice Number" },
         { key: "paymentDate", label: "Payment Date" },
-        { key: "customerName", label: "Customer Name" },
-        { key: "invoiceTotal", label: "Invoice Total(LKR)", right: true },
-        { key: "paidAmount", label: "Paid Amount(LKR)", right: true },
-        { key: "paymentType", label: "Payment Type" },
+        { key: "customerName", label: "Customer Name"},
+        { key: "invoiceTotal", label: "Invoice Total(LKR)"},
+        { key: "paidAmount", label: "Paid Amount(LKR)"},
+        { key: "paymentType", label: "Payment Type"},
       ]}
       fetchData={async (form) => {
         const res = await api<{ sales: Sale[] }>("/api/sales");

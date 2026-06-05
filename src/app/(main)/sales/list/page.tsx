@@ -602,9 +602,9 @@ export default function SalesListPage() {
                         </button>
                       </td>
                       <td className="px-3 py-2">{s.customerName}</td>
-                      <td className="px-3 py-2 text-right">{Math.ceil(Number(s.total ?? 0)).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right">{Math.ceil(Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0))).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right">{Math.ceil(due).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{Math.ceil(Number(s.total ?? 0)).toLocaleString("en-US")}</td>
+                      <td className="px-3 py-2 text-right">{Math.ceil(Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0))).toLocaleString("en-US")}</td>
+                      <td className="px-3 py-2 text-right">{Math.ceil(due).toLocaleString("en-US")}</td>
                       <td className="px-3 py-2">
                         <PaymentBadge 
                           status={s.paymentStatus} 
@@ -721,8 +721,8 @@ export default function SalesListPage() {
               <div className="flex items-center gap-3">
                   <div className="text-right text-sm">
                     <div className="text-slate-500">Grand Total: <span className="font-semibold text-slate-800">{fmtRounded(viewPaySale.total)}</span></div>
-                    <div className="text-slate-500">Paid: <span className="font-semibold text-green-600">LKR {Number(viewPaySale.paidAmount ?? 0).toFixed(2)}</span></div>
-                    <div className="text-slate-500">Due: <span className={`font-semibold ${(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0 ? "text-red-600" : "text-green-600"}`}>LKR {(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)).toFixed(2)}</span></div>
+                    <div className="text-slate-500">Paid: <span className="font-semibold text-green-600">{Math.ceil(Number(viewPaySale.paidAmount ?? 0)).toLocaleString("en-US")}</span></div>
+                    <div className="text-slate-500">Due: <span className={`font-semibold ${(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0 ? "text-red-600" : "text-green-600"}`}>{Math.ceil(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)).toLocaleString("en-US")}</span></div>
                   </div>
                 <button type="button" onClick={() => setViewPaySale(null)} className="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">×</button>
               </div>
@@ -779,7 +779,7 @@ export default function SalesListPage() {
                   <tfoot className="bg-slate-50 border-t border-slate-200">
                     <tr>
                       <td colSpan={5} className="px-3 py-2 text-sm font-semibold text-slate-700 text-right">Total Paid:</td>
-                      <td className="px-3 py-2 text-right font-bold text-green-600">{viewPayments.reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right font-bold text-green-600">{Math.ceil(viewPayments.reduce((s, p) => s + Number(p.amount), 0)).toLocaleString("en-US")}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -888,7 +888,7 @@ export default function SalesListPage() {
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-lg text-slate-800">Payment - Invoice {paySale.saleNumber}</h2>
-              <div className="text-sm font-semibold text-blue-700">Grand Total: LKR {payGrandTotal.toFixed(2)}</div>
+              <div className="text-sm font-semibold text-blue-700">Grand Total: LKR {payGrandTotal.toLocaleString("en-US")}</div>
             </div>
 
             <div className="p-4 space-y-3 overflow-y-auto flex-1">
@@ -972,8 +972,8 @@ export default function SalesListPage() {
               )}
 
               <div className="flex justify-between items-center text-sm font-semibold bg-slate-50 rounded px-3 py-2">
-                <span>Total Paid: <span className="text-green-600">{payMultiTotalPaid.toFixed(2)}</span></span>
-                <span>Balance: <span className={payBalance > 0.005 ? "text-red-600" : "text-green-600"}>{payBalance.toFixed(2)}</span></span>
+                <span>Total Paid: <span className="text-green-600">{Math.ceil(payMultiTotalPaid).toLocaleString("en-US")}</span></span>
+                <span>Due: <span className={payBalance > 0.005 ? "text-red-600" : "text-green-600"}>{Math.ceil(payBalance).toLocaleString("en-US")}</span></span>
               </div>
 
               {payMsg && (

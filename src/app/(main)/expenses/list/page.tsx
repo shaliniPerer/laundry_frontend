@@ -105,13 +105,15 @@ export default function ExpenseListPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return expenses.filter((e) => {
-      return !q ||
-        (e.expenseFor || "").toLowerCase().includes(q) ||
-        (e.note || "").toLowerCase().includes(q) ||
-        (e.referenceNo || "").toLowerCase().includes(q) ||
-        (catMap[e.categoryId || ""] || e.categoryName || "").toLowerCase().includes(q);
-    });
+    return expenses
+      .filter((e) => {
+        return !q ||
+          (e.expenseFor || "").toLowerCase().includes(q) ||
+          (e.note || "").toLowerCase().includes(q) ||
+          (e.referenceNo || "").toLowerCase().includes(q) ||
+          (catMap[e.categoryId || ""] || e.categoryName || "").toLowerCase().includes(q);
+      })
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }, [expenses, search, catMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));

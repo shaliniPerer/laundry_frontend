@@ -26,7 +26,7 @@ export default function ExpenseReportPage() {
         { key: "date", label: "Date" },
         { key: "category", label: "Category" },
         { key: "referenceNo", label: "Reference No." },
-        { key: "amount", label: "Amount(LKR)", right: true },
+        { key: "amount", label: "Amount(LKR)"},
         { key: "note", label: "Note" },
         { key: "createdBy", label: "Created by" },
       ]}
