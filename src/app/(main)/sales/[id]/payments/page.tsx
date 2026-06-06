@@ -62,7 +62,7 @@ export default function ViewPaymentsPage() {
           <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 border-b border-slate-200 text-sm">
             <div><span className="text-slate-500">Invoice Total</span><div className="font-semibold">LKR {Number(data.total).toFixed(2)}</div></div>
             <div><span className="text-slate-500">Paid Amount</span><div className="font-semibold text-green-600">LKR {paidTotal.toFixed(2)}</div></div>
-            <div><span className="text-slate-500">Balance Due</span><div className={`font-semibold ${due > 0 ? "text-red-600" : "text-green-600"}`}>LKR {due.toFixed(2)}</div></div>
+            <div><span className="text-slate-500">{due < 0 ? "Balance (Credit)" : "Balance Due"}</span><div className={`font-semibold ${due > 0 ? "text-red-600" : "text-green-600"}`}>LKR {Math.abs(due).toFixed(2)}</div></div>
           </div>
         )}
 

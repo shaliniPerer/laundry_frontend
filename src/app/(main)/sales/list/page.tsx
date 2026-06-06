@@ -368,7 +368,6 @@ export default function SalesListPage() {
       setSubmittingPay(false);
       setPaySale(null);
       loadData();
-      window.open(`/sales/${id}/view?print=1`, '_blank');
     }
   }
 
@@ -606,14 +605,9 @@ export default function SalesListPage() {
                       <td className="px-3 py-2 text-right">{Math.ceil(Math.min(Number(s.paidAmount ?? 0), Number(s.total ?? 0))).toLocaleString("en-US")}</td>
                       <td className="px-3 py-2 text-right">{Math.ceil(due).toLocaleString("en-US")}</td>
                       <td className="px-3 py-2">
-                        <PaymentBadge 
-                          status={s.paymentStatus} 
-                          onClick={() => {
-                            const pStatus = (s.paymentStatus ?? "").toLowerCase();
-                            if (pStatus === "unpaid" || pStatus === "partial") {
-                              openPaymentModal(s);
-                            }
-                          }}
+                        <PaymentBadge
+                          status={s.paymentStatus}
+                          onClick={() => openPaymentModal(s)}
                         />
                       </td>
                       <td className="px-3 py-2">{s.createdBy}</td>
@@ -722,7 +716,9 @@ export default function SalesListPage() {
                   <div className="text-right text-sm">
                     <div className="text-slate-500">Grand Total: <span className="font-semibold text-slate-800">{fmtRounded(viewPaySale.total)}</span></div>
                     <div className="text-slate-500">Paid: <span className="font-semibold text-green-600">{Math.ceil(Number(viewPaySale.paidAmount ?? 0)).toLocaleString("en-US")}</span></div>
-                    <div className="text-slate-500">Due: <span className={`font-semibold ${(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0 ? "text-red-600" : "text-green-600"}`}>{Math.ceil(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)).toLocaleString("en-US")}</span></div>
+                    {(() => { const d = Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0); return (
+                    <div className="text-slate-500">{d < 0 ? "Balance (Credit)" : "Due"}: <span className={`font-semibold ${d > 0 ? "text-red-600" : "text-green-600"}`}>{Math.ceil(Math.abs(d)).toLocaleString("en-US")}</span></div>
+                    ); })()}
                   </div>
                 <button type="button" onClick={() => setViewPaySale(null)} className="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">×</button>
               </div>
@@ -788,15 +784,13 @@ export default function SalesListPage() {
 
             {/* Footer */}
             <div className="p-4 border-t border-slate-200 flex gap-3 shrink-0">
-              {(Number(viewPaySale.total ?? 0) - Number(viewPaySale.paidAmount ?? 0)) > 0.005 && (
-                <button
-                  type="button"
-                  onClick={() => { setViewPaySale(null); openPaymentModal(viewPaySale); }}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Add Payment
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => { setViewPaySale(null); openPaymentModal(viewPaySale); }}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add Payment
+              </button>
               <button type="button" onClick={() => setViewPaySale(null)}
                 className="ml-auto px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded transition-colors">
                 Close
@@ -973,7 +967,7 @@ export default function SalesListPage() {
 
               <div className="flex justify-between items-center text-sm font-semibold bg-slate-50 rounded px-3 py-2">
                 <span>Total Paid: <span className="text-green-600">{Math.ceil(payMultiTotalPaid).toLocaleString("en-US")}</span></span>
-                <span>Due: <span className={payBalance > 0.005 ? "text-red-600" : "text-green-600"}>{Math.ceil(payBalance).toLocaleString("en-US")}</span></span>
+                <span>{payBalance < 0 ? "Balance (Credit)" : "Due"}: <span className={payBalance > 0.005 ? "text-red-600" : "text-green-600"}>{Math.ceil(Math.abs(payBalance)).toLocaleString("en-US")}</span></span>
               </div>
 
               {payMsg && (
@@ -1042,8 +1036,8 @@ function SummaryCard({ icon, label, value, color }: { icon: React.ReactNode; lab
 
 function PaymentBadge({ status, onClick }: { status?: string; onClick?: () => void }) {
   const s = (status ?? "").toLowerCase();
-  const clickableClass = (s === "unpaid" || s === "partial") && onClick ? "cursor-pointer hover:opacity-80" : "";
-  
+  const clickableClass = onClick ? "cursor-pointer hover:opacity-80" : "";
+
   if (s === "paid") return <span className={`px-2 py-0.5 rounded text-xs bg-green-500 text-white font-semibold ${clickableClass}`} onClick={onClick}>Paid</span>;
   if (s === "partial") return <span className={`px-2 py-0.5 rounded text-xs bg-amber-500 text-white font-semibold ${clickableClass}`} onClick={onClick}>Partial</span>;
   return <span className={`px-2 py-0.5 rounded text-xs bg-red-500 text-white font-semibold ${clickableClass}`} onClick={onClick}>Unpaid</span>;

@@ -55,7 +55,7 @@ export default function PaymentReceivePage() {
     setSaving(false);
     if (res.ok) {
       setMsg({ type: "ok", text: "Payment recorded successfully." });
-      setTimeout(() => router.push(`/sales/${id}/view?print=1`), 1200);
+      setTimeout(() => router.push(`/sales/${id}/payments`), 1200);
     } else {
       setMsg({ type: "err", text: res.error ?? "Failed to record payment." });
     }
@@ -73,7 +73,7 @@ export default function PaymentReceivePage() {
         <div className="grid grid-cols-3 gap-4 mb-6 text-sm bg-slate-50 rounded p-4">
           <div><span className="text-slate-500">Customer</span><div className="font-semibold">{sale.customerName ?? "Walk-in"}</div></div>
           <div><span className="text-slate-500">Invoice Total</span><div className="font-semibold">LKR {Number(sale.total ?? 0).toFixed(2)}</div></div>
-          <div><span className="text-slate-500">Balance Due</span><div className={`font-semibold ${due > 0 ? "text-red-600" : "text-green-600"}`}>LKR {due.toFixed(2)}</div></div>
+          <div><span className="text-slate-500">{due < 0 ? "Balance (Credit)" : "Balance Due"}</span><div className={`font-semibold ${due > 0 ? "text-red-600" : "text-green-600"}`}>LKR {Math.abs(due).toFixed(2)}</div></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
