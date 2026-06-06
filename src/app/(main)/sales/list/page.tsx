@@ -368,6 +368,7 @@ export default function SalesListPage() {
       setSubmittingPay(false);
       setPaySale(null);
       loadData();
+      router.push(`/sales/${id}/view?print=1`);
     }
   }
 
