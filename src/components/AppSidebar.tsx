@@ -201,14 +201,8 @@ export function AppSidebar() {
         style={{ background: "var(--sidebar-bg)" }}
       >
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <Link href="/dashboard" onClick={closeMobile} className="flex min-w-0 items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/12 text-lg font-black text-white ring-1 ring-white/15">
-              LP
-            </span>
-            <div className="min-w-0">
-              <div className="truncate text-lg font-extrabold tracking-tight text-white">CIMPOS Laundry</div>
-              <div className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">Management System</div>
-            </div>
+          <Link href="/dashboard" onClick={closeMobile} className="flex min-w-0 items-center">
+            <img src="/logo.png" alt="Logo" className="h-11 w-auto object-contain" />
           </Link>
           <button
             type="button"

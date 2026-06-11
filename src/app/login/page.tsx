@@ -43,16 +43,7 @@ export default function LoginPage() {
           className="hidden md:flex flex-col w-[58%] p-8"
           style={{ background: "linear-gradient(160deg, #4a8e91 0%, #3a7679 35%, #2b5f63 70%, #1e4a4d 100%)" }}
         >
-          {/* Top badge */}
-          <div className="mb-6 flex justify-center">
-            <span
-              className="inline-flex items-center gap-2 text-white text-sm px-4 py-1.5 rounded-full"
-              style={{ background: "rgba(255,255,255,0.15)" }}
-            >
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-white/20 text-xs font-bold">B</span>
-              Developed by ClickInmo Software for laundry businesses
-            </span>
-          </div>
+          
 
           {/* Heading */}
           <h1 className="text-3xl font-bold text-white leading-tight mb-3">
@@ -105,32 +96,20 @@ export default function LoginPage() {
         <div className="w-full md:w-[42%] bg-white flex flex-col">
           <div className="flex-1 flex flex-col justify-center px-10 py-10">
 
-            {/* Logo / brand row */}
-            <div className="flex items-center gap-3 border border-slate-200 rounded-lg px-4 py-3 mb-8">
-              <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md border border-slate-200 bg-slate-50 shrink-0">
-                <span className="text-[10px] font-bold text-slate-700 leading-none">CIM</span>
-                <span className="text-[10px] font-bold text-slate-700 leading-none">POS</span>
-                <span className="text-[7px] text-slate-400 leading-none mt-0.5">Click Inmo software</span>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">Powered By</p>
-                <p className="text-sm font-semibold text-slate-800 leading-tight">Cimpos Laundry Management System</p>
-              </div>
+            {/* Logo */}
+            <div className="flex justify-center mb-8">
+              <img src="/logo_bg.png" alt="Logo" className="h-16 w-auto object-contain" />
             </div>
 
             {/* Business account section */}
-            <div className="flex items-start gap-3 mb-7">
-              {/* CimPOS logo replacing ABC avatar */}
-              <div className="w-14 h-14 flex flex-col items-center justify-center shrink-0">
-                <div className="leading-none" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-                  <span className="font-black" style={{ fontSize: "0.95rem", color: "#1565c0" }}>Cim</span>
-                  <span className="font-black" style={{ fontSize: "0.95rem", color: "#0d0d0d" }}>POS</span>
-                </div>
-                <span className="text-[6px] text-slate-400 leading-none mt-0.5 text-center">Click Inmo Pvt Ltd</span>
+            <div className="flex items-center gap-4 mb-7">
+              <div className="flex items-center justify-center w-14 h-14 rounded-xl shrink-0 text-white text-2xl font-black shadow-md"
+                style={{ background: "linear-gradient(135deg, #4a9ea1 0%, #2b5f63 100%)" }}>
+                C
               </div>
               <div>
                 <p className="text-[10px] text-teal-600 uppercase tracking-widest font-semibold mb-0.5">
-                  Example Laundry Account
+                  Demo Laundry Account
                 </p>
                 <h2 className="text-2xl font-bold text-slate-900 leading-tight">Cimpos Laundry</h2>
                 <p className="text-sm text-slate-500 mt-0.5">Sign in to continue to your dashboard</p>
