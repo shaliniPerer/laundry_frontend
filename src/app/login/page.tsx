@@ -208,7 +208,11 @@ export default function LoginPage() {
 
       {/* Page footer */}
       <p className="mt-6 text-xs text-slate-500 text-center">
-        Cimpos is a division of Click Inmo (Pvt) Ltd.&nbsp;&nbsp;Version 1.0.0&nbsp;&nbsp;&nbsp;© 2026 Cimpos. All rights reserved.
+        Cimpos is a division of{" "}
+        <a href="https://clickinmo.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-teal-600 transition-colors">
+          Click Inmo (Pvt) Ltd
+        </a>
+        .&nbsp;&nbsp;Version 1.0.0&nbsp;&nbsp;&nbsp;© 2026 Cimpos. All rights reserved.
       </p>
     </div>
   );
