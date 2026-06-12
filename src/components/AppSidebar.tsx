@@ -202,7 +202,7 @@ export function AppSidebar() {
       >
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <Link href="/dashboard" onClick={closeMobile} className="flex min-w-0 items-center">
-            <img src="/logo.png" alt="Logo" className="h-11 w-auto object-contain" />
+            <img src="/logo_bg.png" alt="Logo" className="h-11 w-auto object-contain" />
           </Link>
           <button
             type="button"
