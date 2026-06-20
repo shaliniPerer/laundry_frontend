@@ -304,6 +304,62 @@ function statusLabel(s: string) {
   return map[s.toLowerCase()] ?? s;
 }
 
+// ─── Date Range Toolbar ───────────────────────────────────────────────────────
+// Must be defined at module level — defining inside DashboardPage creates a new
+// function reference every render, causing React to unmount/remount it and
+// destroying the native date picker mid-interaction.
+
+function DateRangeToolbar<T extends DeliveryRangeType>({
+  value,
+  from,
+  to,
+  onValueChange,
+  onFromChange,
+  onToChange,
+  includeTomorrow = false,
+}: {
+  value: T;
+  from: string;
+  to: string;
+  onValueChange: (value: T) => void;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+  includeTomorrow?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onValueChange(e.target.value as T)}
+          className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
+        >
+          <option value="today">Today</option>
+          {includeTomorrow && <option value="tomorrow">Tomorrow</option>}
+          <option value="this_week">This Week</option>
+          <option value="this_month">This Month</option>
+          <option value="custom">Custom Range</option>
+        </select>
+        <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      </div>
+      {value === "custom" && (
+        <>
+          <DateInput
+            value={from}
+            onChange={onFromChange}
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
+          />
+          <DateInput
+            value={to}
+            onChange={onToChange}
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -478,59 +534,6 @@ export default function DashboardPage() {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 6 }, (_, i) => currentYear - i);
   }, []);
-
-  function DateRangeToolbar<T extends DeliveryRangeType>({
-    value,
-    from,
-    to,
-    onValueChange,
-    onFromChange,
-    onToChange,
-    includeTomorrow = false,
-  }: {
-    value: T;
-    from: string;
-    to: string;
-    onValueChange: (value: T) => void;
-    onFromChange: (value: string) => void;
-    onToChange: (value: string) => void;
-    includeTomorrow?: boolean;
-  }) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
-          <select
-            value={value}
-            onChange={(e) =>
-              onValueChange(e.target.value as T)
-            }
-            className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
-          >
-            <option value="today">Today</option>
-            {includeTomorrow && <option value="tomorrow">Tomorrow</option>}
-            <option value="this_week">This Week</option>
-            <option value="this_month">This Month</option>
-            <option value="custom">Custom Range</option>
-          </select>
-          <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
-        {value === "custom" && (
-          <>
-            <DateInput
-              value={from}
-              onChange={onFromChange}
-              className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
-            />
-            <DateInput
-              value={to}
-              onChange={onToChange}
-              className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 bg-white"
-            />
-          </>
-        )}
-      </div>
-    );
-  }
 
   return (
 

@@ -6,13 +6,10 @@ import { useRef } from "react";
 
 function toDisplay(iso?: string) {
   if (!iso) return "";
-
   const p = iso.split("-");
-
   if (p.length === 3 && p[0].length === 4) {
     return `${p[2]}-${p[1]}-${p[0]}`;
   }
-
   return iso;
 }
 
@@ -38,10 +35,7 @@ export function DateInput({
   const dateRef = useRef<HTMLInputElement>(null);
 
   const openPicker = () => {
-    if (dateRef.current) {
-      dateRef.current.showPicker?.(); // Opens calendar directly
-      dateRef.current.focus();
-    }
+    dateRef.current?.showPicker?.();
   };
 
   return (
@@ -50,28 +44,31 @@ export function DateInput({
       onClick={openPicker}
       style={{ cursor: "pointer" }}
     >
-      {/* Visible input */}
+      {/* Visible display input */}
       <input
         type="text"
         readOnly
+        tabIndex={-1}
         value={toDisplay(value)}
         placeholder={placeholder}
         id={id}
         className={className}
-        style={{ paddingRight: "2rem", cursor: "pointer" }}
+        style={{ paddingRight: "2rem", cursor: "pointer", pointerEvents: "none" }}
       />
 
       {/* Calendar icon */}
       <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
 
-      {/* Hidden native date input */}
+      {/* Native date input — opacity-0 but still receives focus/change events */}
       <input
         ref={dateRef}
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+        tabIndex={-1}
+        className="absolute inset-0 opacity-0 w-full h-full"
+        style={{ pointerEvents: "none" }}
       />
     </div>
   );

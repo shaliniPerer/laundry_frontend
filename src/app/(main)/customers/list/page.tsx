@@ -55,8 +55,8 @@ function formatDiscountType(customer: Pick<Customer, "discountType">) {
 }
 
 function formatDiscountAmount(customer: Pick<Customer, "discount">) {
-  if (customer.discount == null) return "-";
-  return Number(customer.discount).toFixed(2);
+  if (customer.discount == null || Number(customer.discount) === 0) return "-";
+  return String(Math.round(Number(customer.discount)));
 }
 
 export default function CustomerListPage() {
@@ -108,7 +108,7 @@ export default function CustomerListPage() {
         for (const customer of nextCustomers) {
           nextDrafts[customer.pk] = prev[customer.pk] ?? {
             discountType: customer.discountType || "percentage",
-            discount: customer.discount != null ? String(customer.discount) : "",
+            discount: customer.discount != null && Number(customer.discount) !== 0 ? String(customer.discount) : "",
           };
         }
 
@@ -462,13 +462,19 @@ export default function CustomerListPage() {
               <>
                 <div className="flex items-center gap-1">
                   <span className="text-sm text-slate-600">From:</span>
-                  <input type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); setPage(1); }}
-                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none focus:border-blue-400" />
+                  <DateInput
+                    value={customFrom}
+                    onChange={(v) => { setCustomFrom(v); setPage(1); }}
+                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none focus:border-blue-400"
+                  />
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-sm text-slate-600">To:</span>
-                  <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); setPage(1); }}
-                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none focus:border-blue-400" />
+                  <DateInput
+                    value={customTo}
+                    onChange={(v) => { setCustomTo(v); setPage(1); }}
+                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white outline-none focus:border-blue-400"
+                  />
                 </div>
               </>
             )}
@@ -587,13 +593,13 @@ export default function CustomerListPage() {
                           <input
                             type="number"
                             min={0}
-                            step={0.01}
+                            step={1}
                             value={discountDraft.discount}
                             onChange={(e) =>
-                              setDiscountDraft(customer.pk, { discount: e.target.value })
+                              setDiscountDraft(customer.pk, { discount: e.target.value === "" ? "" : String(Math.round(Number(e.target.value))) })
                             }
                             className="w-24 border border-slate-200 rounded px-2 py-1 text-xs text-right outline-none focus:border-blue-400"
-                            placeholder="0.00"
+                            placeholder="0"
                           />
                           <button
                             type="button"
@@ -843,7 +849,7 @@ export default function CustomerListPage() {
               <div><b>City:</b> {viewCustomer.city || "-"}</div>
               <div><b>Previous Due:</b> {Number(viewCustomer.previousDue || 0).toFixed(2)}</div>
               <div><b>Discount Type:</b> {formatDiscountType(viewCustomer)}</div>
-              <div><b>Discount Amount:</b> {formatDiscountAmount(viewCustomer)}{viewCustomer.discountType === "percentage" && viewCustomer.discount != null ? "%" : ""}</div>
+              <div><b>Discount Amount:</b> {formatDiscountAmount(viewCustomer)}{viewCustomer.discountType === "percentage" && viewCustomer.discount != null && Number(viewCustomer.discount) !== 0 ? "%" : ""}</div>
 
               {/* Sales totals */}
               {(() => {
